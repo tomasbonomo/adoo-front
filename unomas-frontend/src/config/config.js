@@ -1,3 +1,5 @@
+// Crear archivo: src/config/config.js
+
 // Configuración centralizada de la aplicación UnoMas
 const config = {
   // Configuración de la API
@@ -114,115 +116,6 @@ const config = {
       nombre: 'Avanzado',
       descripcion: 'Jugador experimentado'
     }
-  },
-
-  // Configuración de notificaciones (para implementación futura)
-  notifications: {
-    firebase: {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    },
-    types: {
-      PARTIDO_CREADO: 'Nuevo partido disponible',
-      JUGADOR_UNIDO: 'Nuevo jugador se unió',
-      PARTIDO_ARMADO: 'Partido completo',
-      PARTIDO_CONFIRMADO: 'Partido confirmado',
-      PARTIDO_INICIADO: 'Partido iniciado',
-      PARTIDO_FINALIZADO: 'Partido finalizado',
-      PARTIDO_CANCELADO: 'Partido cancelado'
-    }
-  },
-
-  // Configuración de mapas (para implementación futura)
-  maps: {
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    defaultCenter: {
-      lat: -34.6037,
-      lng: -58.3816 // Buenos Aires, Argentina
-    },
-    defaultZoom: 12,
-    maxZoom: 18,
-    minZoom: 8
-  },
-
-  // Configuración de validaciones
-  validation: {
-    email: {
-      pattern: /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
-      message: 'El formato del email es inválido'
-    },
-    password: {
-      minLength: 8,
-      message: 'La contraseña debe tener al menos 8 caracteres'
-    },
-    username: {
-      minLength: 3,
-      maxLength: 50,
-      pattern: /^[a-zA-Z0-9_-]+$/,
-      message: 'El nombre de usuario debe tener entre 3 y 50 caracteres y solo puede contener letras, números, guiones y guiones bajos'
-    },
-    partido: {
-      minJugadores: 2,
-      maxJugadores: 50,
-      minDuracion: 30, // minutos
-      maxDuracion: 300 // minutos (5 horas)
-    }
-  },
-
-  // Configuración de formato de fechas
-  dateFormats: {
-    short: {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    },
-    long: {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    },
-    dateOnly: {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    },
-    timeOnly: {
-      hour: '2-digit',
-      minute: '2-digit'
-    }
-  },
-
-  // Configuración de analytics (para implementación futura)
-  analytics: {
-    googleAnalyticsId: import.meta.env.VITE_GOOGLE_ANALYTICS_ID,
-    enableTracking: import.meta.env.PROD
-  },
-
-  // Configuración de logs
-  logging: {
-    level: import.meta.env.VITE_LOG_LEVEL || 'info',
-    enableConsole: import.meta.env.DEV,
-    enableRemote: import.meta.env.PROD
-  },
-
-  // URLs y rutas importantes
-  routes: {
-    public: ['/login', '/register', '/'],
-    protected: ['/dashboard', '/perfil', '/partidos', '/estadisticas'],
-    admin: ['/admin']
-  },
-
-  // Configuración de performance
-  performance: {
-    debounceDelay: 300, // millisegundos para debounce en búsquedas
-    cacheTimeout: 5 * 60 * 1000, // 5 minutos
-    retryAttempts: 3,
-    retryDelay: 1000 // millisegundos
   }
 };
 
@@ -231,8 +124,47 @@ export const getConfig = (path) => {
   return path.split('.').reduce((obj, key) => obj?.[key], config);
 };
 
+// FUNCIONES HELPER PARA DEPORTES - NUEVAS
 export const getDeporteIcon = (tipoDeporte) => {
-  return config.deportes.iconos[tipoDeporte] || config.deportes.iconos.DEFAULT;
+  const iconos = {
+    'FUTBOL': '⚽',
+    'BASQUET': '🏀', 
+    'VOLEY': '🏐',
+    'TENIS': '🎾'
+  };
+  return iconos[tipoDeporte] || '🏃‍♂️';
+};
+
+export const getDeporteDisplay = (deportes, tipoDeporte) => {
+  if (!deportes || !Array.isArray(deportes)) {
+    return {
+      icon: getDeporteIcon(tipoDeporte),
+      label: tipoDeporte
+    };
+  }
+  
+  const deporte = deportes.find(d => d.value === tipoDeporte);
+  return {
+    icon: getDeporteIcon(tipoDeporte),
+    label: deporte?.label || tipoDeporte
+  };
+};
+
+// Para componentes que solo necesitan el nombre legible
+export const getDeporteLabel = (deportes, tipoDeporte) => {
+  if (!deportes || !Array.isArray(deportes)) {
+    // Fallback mapping si no tenemos los deportes cargados
+    const fallbackLabels = {
+      'FUTBOL': 'Fútbol',
+      'BASQUET': 'Básquet',
+      'VOLEY': 'Vóley', 
+      'TENIS': 'Tenis'
+    };
+    return fallbackLabels[tipoDeporte] || tipoDeporte;
+  }
+  
+  const deporte = deportes.find(d => d.value === tipoDeporte);
+  return deporte?.label || tipoDeporte;
 };
 
 export const getDeporteColor = (tipoDeporte) => {
@@ -262,33 +194,61 @@ export const getNivelJuegoInfo = (nivel) => {
 export const formatDate = (dateString, format = 'short') => {
   if (!dateString) return '';
   
+  const dateFormats = {
+    short: {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    },
+    long: {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    },
+    dateOnly: {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    },
+    timeOnly: {
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+  };
+  
   const date = new Date(dateString);
-  const formatOptions = config.dateFormats[format] || config.dateFormats.short;
+  const formatOptions = dateFormats[format] || dateFormats.short;
   
   return date.toLocaleDateString('es-ES', formatOptions);
 };
 
 export const isValidEmail = (email) => {
-  return config.validation.email.pattern.test(email);
+  const emailPattern = /^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+  return emailPattern.test(email);
 };
 
 export const isValidPassword = (password) => {
-  return password && password.length >= config.validation.password.minLength;
+  return password && password.length >= 8;
 };
 
 export const isValidUsername = (username) => {
+  const usernamePattern = /^[a-zA-Z0-9_-]+$/;
   return username && 
-         username.length >= config.validation.username.minLength &&
-         username.length <= config.validation.username.maxLength &&
-         config.validation.username.pattern.test(username);
+         username.length >= 3 &&
+         username.length <= 50 &&
+         usernamePattern.test(username);
 };
 
 // Función para logging condicional
 export const log = (level, message, ...args) => {
-  if (!config.logging.enableConsole) return;
+  if (!config.app.isDevelopment) return;
   
   const logLevels = ['error', 'warn', 'info', 'debug'];
-  const currentLevelIndex = logLevels.indexOf(config.logging.level);
+  const currentLevelIndex = logLevels.indexOf('info');
   const messageLevelIndex = logLevels.indexOf(level);
   
   if (messageLevelIndex <= currentLevelIndex) {

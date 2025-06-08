@@ -38,6 +38,8 @@ const Register = () => {
   const loadDeportes = () => {
     apiService.getDeportesTypes()
       .then(tipos => {
+        // Ahora tipos es un array de objetos {value, label}
+        console.log('Deportes cargados:', tipos);
         setDeportes(tipos);
       })
       .catch(err => {
@@ -112,6 +114,8 @@ const Register = () => {
       registerData.nivelJuego = null;
     }
     
+    console.log('Datos a enviar:', registerData);
+    
     register(registerData)
       .then(() => {
         navigate('/dashboard', { replace: true });
@@ -122,9 +126,13 @@ const Register = () => {
       });
   };
 
+  // Opciones para el select de deportes - CORREGIDO para nueva estructura
   const deporteOptions = [
     { value: '', label: 'Selecciona un deporte (opcional)' },
-    ...deportes.map(deporte => ({ value: deporte, label: deporte }))
+    ...deportes.map(deporte => ({ 
+      value: deporte.value,  // FUTBOL, BASQUET, etc.
+      label: deporte.label   // Fútbol, Básquet, etc.
+    }))
   ];
 
   const nivelOptions = [
@@ -279,7 +287,7 @@ const Register = () => {
               )}
             </div>
 
-            {/* Deporte favorito */}
+            {/* Deporte favorito - CORREGIDO */}
             <Select
               name="deporteFavorito"
               options={deporteOptions}

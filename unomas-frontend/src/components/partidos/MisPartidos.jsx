@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getDeporteIcon } from  '../../config/config';
 import { 
   Calendar,
   MapPin, 
@@ -47,15 +48,7 @@ const MisPartidos = () => {
       });
   };
 
-  const getDeporteIcon = (tipoDeporte) => {
-    switch(tipoDeporte) {
-      case 'FUTBOL': return '⚽';
-      case 'BASQUET': return '🏀';
-      case 'VOLEY': return '🏐';
-      case 'TENIS': return '🎾';
-      default: return '🏃‍♂️';
-    }
-  };
+  
 
   const getEstadoBadge = (estado) => {
     const badgeProps = {

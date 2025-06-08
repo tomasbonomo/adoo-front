@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getDeporteIcon } from  '../../config/config';
 import { 
   ArrowLeft,
   MapPin, 
@@ -91,15 +92,6 @@ const PartidoDetails = () => {
       });
   };
 
-  const getDeporteIcon = (tipoDeporte) => {
-    switch(tipoDeporte) {
-      case 'FUTBOL': return '⚽';
-      case 'BASQUET': return '🏀';
-      case 'VOLEY': return '🏐';
-      case 'TENIS': return '🎾';
-      default: return '🏃‍♂️';
-    }
-  };
 
   const getEstadoBadge = (estado) => {
     const badgeProps = {

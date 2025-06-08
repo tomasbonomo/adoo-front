@@ -113,8 +113,8 @@ class ApiService {
   }
 
   getDeportesTypes() {
-    return this.makeRequest('/deportes/tipos', { skipAuth: true });
-  }
+  return this.makeRequest('/deportes/tipos', { skipAuth: true });
+}
 
   getDeporte(id) {
     return this.makeRequest(`/deportes/${id}`, { skipAuth: true });

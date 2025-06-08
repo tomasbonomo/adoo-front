@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getDeporteIcon } from  '../../config/config';
 import { 
   Plus, 
   MapPin, 
@@ -41,25 +42,25 @@ const CreatePartido = () => {
     loadInitialData();
   }, []);
 
-  const loadInitialData = () => {
-    setLoading(true);
-    
-    Promise.all([
-      apiService.getDeportesTypes(),
-      apiService.getZonas()
-    ])
-    .then(([deportesData, zonasData]) => {
-      setDeportes(deportesData);
-      setZonas(zonasData);
-    })
-    .catch(err => {
-      console.error('Error cargando datos iniciales:', err);
-      setError(apiService.handleApiError(err));
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-  };
+const loadInitialData = () => {
+  setLoading(true);
+  
+  Promise.all([
+    apiService.getDeportesTypes(),
+    apiService.getZonas()
+  ])
+  .then(([deportesData, zonasData]) => {
+    setDeportes(deportesData); // Ahora es array de {value, label}
+    setZonas(zonasData);
+  })
+  .catch(err => {
+    console.error('Error cargando datos iniciales:', err);
+    setError(apiService.handleApiError(err));
+  })
+  .finally(() => {
+    setLoading(false);
+  });
+};
 
   const validateForm = () => {
     const errors = {};
@@ -164,20 +165,23 @@ const CreatePartido = () => {
       });
   };
 
-  const getDeporteInfo = (tipoDeporte) => {
-    const deporteInfo = {
-      'FUTBOL': { icon: '⚽', jugadores: 11, descripcion: '11 vs 11' },
-      'BASQUET': { icon: '🏀', jugadores: 5, descripcion: '5 vs 5' },
-      'VOLEY': { icon: '🏐', jugadores: 6, descripcion: '6 vs 6' },
-      'TENIS': { icon: '🎾', jugadores: 2, descripcion: '1 vs 1 o 2 vs 2' }
-    };
-    return deporteInfo[tipoDeporte] || { icon: '🏃‍♂️', jugadores: 2, descripcion: 'Personalizable' };
+ const getDeporteInfo = (tipoDeporte) => {
+  const deporteInfo = {
+    'FUTBOL': { icon: '⚽', jugadores: 11, descripcion: '11 vs 11' },
+    'BASQUET': { icon: '🏀', jugadores: 5, descripcion: '5 vs 5' },
+    'VOLEY': { icon: '🏐', jugadores: 6, descripcion: '6 vs 6' },
+    'TENIS': { icon: '🎾', jugadores: 2, descripcion: '1 vs 1 o 2 vs 2' }
   };
+  return deporteInfo[tipoDeporte] || { icon: '🏃‍♂️', jugadores: 2, descripcion: 'Personalizable' };
+};
 
   const deporteOptions = [
-    { value: '', label: 'Selecciona un deporte' },
-    ...deportes.map(deporte => ({ value: deporte, label: deporte }))
-  ];
+  { value: '', label: 'Selecciona un deporte' },
+  ...deportes.map(deporte => ({ 
+    value: deporte.value,  // FUTBOL, BASQUET, etc.
+    label: deporte.label   // Fútbol, Básquet, etc.
+  }))
+];
 
   const zonaOptions = [
     { value: '', label: 'Selecciona una zona (opcional)' },

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getDeporteIcon } from  '../../config/config';
 import { 
   Search, 
   Filter, 
@@ -48,21 +49,21 @@ const SearchPartidos = () => {
     searchPartidos();
   }, [currentPage, filters]);
 
-  const loadInitialData = () => {
-    // Cargar deportes y zonas para los filtros
-    Promise.all([
-      apiService.getDeportesTypes(),
-      apiService.getZonas()
-    ])
-    .then(([deportesData, zonasData]) => {
-      setDeportes(deportesData);
-      setZonas(zonasData);
-    })
-    .catch(err => {
-      console.error('Error cargando datos iniciales:', err);
-      setError(apiService.handleApiError(err));
-    });
-  };
+const loadInitialData = () => {
+  // Cargar deportes y zonas para los filtros
+  Promise.all([
+    apiService.getDeportesTypes(),
+    apiService.getZonas()
+  ])
+  .then(([deportesData, zonasData]) => {
+    setDeportes(deportesData); // Ahora es array de {value, label}
+    setZonas(zonasData);
+  })
+  .catch(err => {
+    console.error('Error cargando datos iniciales:', err);
+    setError(apiService.handleApiError(err));
+  });
+};
 
   const searchPartidos = () => {
     setLoading(true);
@@ -132,16 +133,6 @@ const SearchPartidos = () => {
       });
   };
 
-  const getDeporteIcon = (tipoDeporte) => {
-    switch(tipoDeporte) {
-      case 'FUTBOL': return '⚽';
-      case 'BASQUET': return '🏀';
-      case 'VOLEY': return '🏐';
-      case 'TENIS': return '🎾';
-      default: return '🏃‍♂️';
-    }
-  };
-
   const getEstadoBadge = (estado) => {
     const badgeProps = {
       'NECESITAMOS_JUGADORES': { variant: 'yellow', text: 'Buscando jugadores' },
@@ -163,10 +154,13 @@ const SearchPartidos = () => {
     });
   };
 
-  const deporteOptions = [
-    { value: '', label: 'Todos los deportes' },
-    ...deportes.map(deporte => ({ value: deporte, label: deporte }))
-  ];
+ const deporteOptions = [
+  { value: '', label: 'Todos los deportes' },
+  ...deportes.map(deporte => ({ 
+    value: deporte.value,  // FUTBOL, BASQUET, etc.
+    label: deporte.label   // Fútbol, Básquet, etc.
+  }))
+];
 
   const zonaOptions = [
     { value: '', label: 'Todas las zonas' },

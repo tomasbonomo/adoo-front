@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getDeporteIcon } from  '../../config/config';
 import { 
   BarChart3,
   Users,
@@ -39,15 +40,6 @@ const Estadisticas = () => {
       });
   };
 
-  const getDeporteIcon = (deporte) => {
-    switch(deporte) {
-      case 'FUTBOL': return '⚽';
-      case 'BASQUET': return '🏀';
-      case 'VOLEY': return '🏐';
-      case 'TENIS': return '🎾';
-      default: return '🏃‍♂️';
-    }
-  };
 
   const formatPercentage = (value, total) => {
     if (!total || total === 0) return '0%';

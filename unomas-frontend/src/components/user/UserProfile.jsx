@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { getDeporteIcon, getDeporteLabel } from '../../config/config';
 import { 
   User,
   Mail,
@@ -72,15 +73,15 @@ const UserProfile = () => {
       });
   };
 
-  const loadDeportes = () => {
-    return apiService.getDeportesTypes()
-      .then(deportesData => {
-        setDeportes(deportesData);
-      })
-      .catch(err => {
-        console.error('Error cargando deportes:', err);
-      });
-  };
+const loadDeportes = () => {
+  return apiService.getDeportesTypes()
+    .then(deportesData => {
+      setDeportes(deportesData); // Ahora es array de {value, label}
+    })
+    .catch(err => {
+      console.error('Error cargando deportes:', err);
+    });
+};
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -130,15 +131,7 @@ const UserProfile = () => {
     }));
   };
 
-  const getDeporteIcon = (tipoDeporte) => {
-    switch(tipoDeporte) {
-      case 'FUTBOL': return '⚽';
-      case 'BASQUET': return '🏀';
-      case 'VOLEY': return '🏐';
-      case 'TENIS': return '🎾';
-      default: return '🏃‍♂️';
-    }
-  };
+
 
   const getNivelColor = (nivel) => {
     switch(nivel) {
@@ -158,9 +151,12 @@ const UserProfile = () => {
   };
 
   const deporteOptions = [
-    { value: '', label: 'Sin deporte favorito' },
-    ...deportes.map(deporte => ({ value: deporte, label: deporte }))
-  ];
+  { value: '', label: 'Sin deporte favorito' },
+  ...deportes.map(deporte => ({ 
+    value: deporte.value,  // FUTBOL, BASQUET, etc.
+    label: deporte.label   // Fútbol, Básquet, etc.
+  }))
+];
 
   const nivelOptions = [
     { value: '', label: 'Sin nivel definido' },
@@ -287,7 +283,9 @@ const UserProfile = () => {
                             <span className="text-2xl mr-2">
                               {getDeporteIcon(user.deporteFavorito)}
                             </span>
-                            <span className="text-sm text-gray-600">{user.deporteFavorito}</span>
+                            <span className="text-sm text-gray-600">
+                              {getDeporteLabel(deportes, user.deporteFavorito)}
+                            </span>
                           </>
                         ) : (
                           <span className="text-sm text-gray-400">No definido</span>
