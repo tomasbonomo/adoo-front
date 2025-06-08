@@ -214,26 +214,14 @@ class ApiService {
   // Métodos de conveniencia para manejo de errores
   handleApiError(error) {
     console.error('API Error:', error);
-    
-    if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-      this.removeToken();
-      window.location.href = '/login';
-      return 'Sesión expirada. Por favor, inicia sesión nuevamente.';
+
+    // Si el error es del tipo Error lanzado en makeRequest con un mensaje del backend
+    if (error.message) {
+      return error.message;
     }
-    
-    if (error.message.includes('403') || error.message.includes('Forbidden')) {
-      return 'No tienes permisos para realizar esta acción.';
-    }
-    
-    if (error.message.includes('404') || error.message.includes('Not Found')) {
-      return 'Recurso no encontrado.';
-    }
-    
-    if (error.message.includes('Network') || error.message.includes('fetch')) {
-      return 'Error de conexión. Verifica tu conexión a internet.';
-    }
-    
-    return error.message || 'Ha ocurrido un error inesperado.';
+
+    // Otros chequeos generales
+    return 'Ha ocurrido un error inesperado.';
   }
 }
 
