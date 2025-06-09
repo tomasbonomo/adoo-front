@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, Loading, ErrorMessage, SuccessMessage, Button, Badge } from '../common';
 import apiService from '../../services/api';
+import ComentariosSection from '../comentarios/ComentariosSection';
 
 const PartidoDetails = () => {
   const { id } = useParams();
@@ -90,6 +91,21 @@ const PartidoDetails = () => {
       .finally(() => {
         setActionLoading(false);
       });
+  };
+
+  const confirmarParticipacion = () => {
+    setActionLoading(true);
+    apiService.confirmarParticipacion(id)
+      .then(response => {
+        setSuccess(response.mensaje);
+        loadPartido();
+      })
+      .catch(err => setError(apiService.handleApiError(err)))
+      .finally(() => setActionLoading(false));
+  };
+
+  const canComment = () => {
+    return (isParticipant() || isOrganizador()) && partido.estado === 'FINALIZADO';
   };
 
 
@@ -338,17 +354,28 @@ const PartidoDetails = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones</h3>
             <div className="space-y-3">
               {canJoin() && (
-                <Button
-                  onClick={joinPartido}
-                  loading={actionLoading}
-                  className="w-full"
-                  size="lg"
-                >
+                <Button onClick={joinPartido} loading={actionLoading} className="w-full" size="lg">
                   Unirse al Partido
                 </Button>
               )}
 
-              {isParticipant() && !isOrganizador() && (
+              {/* NUEVO: Confirmación de participación */}
+              {isParticipant() && partido.estado === 'PARTIDO_ARMADO' && (
+                <div className="space-y-2">
+                  <div className="p-3 bg-yellow-50 rounded-lg">
+                    <div className="flex items-center text-yellow-700">
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-medium">Confirma tu participación</span>
+                    </div>
+                  </div>
+                  <Button onClick={confirmarParticipacion} loading={actionLoading} variant="success" className="w-full">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Confirmar Participación
+                  </Button>
+                </div>
+              )}
+
+              {isParticipant() && !isOrganizador() && partido.estado !== 'PARTIDO_ARMADO' && (
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center text-green-700">
                     <CheckCircle className="h-5 w-5 mr-2" />
@@ -365,25 +392,14 @@ const PartidoDetails = () => {
                       <span className="font-medium">Eres el organizador</span>
                     </div>
                   </div>
-
                   {canManage() && (
                     <>
                       {partido.estado === 'PARTIDO_ARMADO' && (
-                        <Button
-                          onClick={() => changeState('CONFIRMADO')}
-                          loading={actionLoading}
-                          variant="success"
-                          className="w-full"
-                        >
+                        <Button onClick={() => changeState('CONFIRMADO')} loading={actionLoading} variant="success" className="w-full">
                           Confirmar Partido
                         </Button>
                       )}
-                      <Button
-                        onClick={() => changeState('CANCELADO', 'Cancelado por el organizador')}
-                        loading={actionLoading}
-                        variant="danger"
-                        className="w-full"
-                      >
+                      <Button onClick={() => changeState('CANCELADO', 'Cancelado por el organizador')} loading={actionLoading} variant="danger" className="w-full">
                         Cancelar Partido
                       </Button>
                     </>
@@ -393,12 +409,8 @@ const PartidoDetails = () => {
 
               {!user && (
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-2">
-                    Inicia sesión para unirte al partido
-                  </p>
-                  <Link to="/login" className="btn-primary w-full text-center block">
-                    Iniciar Sesión
-                  </Link>
+                  <p className="text-sm text-gray-600 mb-2">Inicia sesión para unirte al partido</p>
+                  <Link to="/login" className="btn-primary w-full text-center block">Iniciar Sesión</Link>
                 </div>
               )}
             </div>
@@ -483,6 +495,10 @@ const PartidoDetails = () => {
           </Card>
         </div>
       </div>
+      {/* Comentarios para partidos finalizados */}
+      {partido.estado === 'FINALIZADO' && (
+        <ComentariosSection partidoId={partido.id} canComment={canComment()} />
+      )}
     </div>
   );
 };

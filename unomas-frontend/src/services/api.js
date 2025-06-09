@@ -223,6 +223,25 @@ class ApiService {
     // Otros chequeos generales
     return 'Ha ocurrido un error inesperado.';
   }
+
+  // =============== CONFIRMACIONES ===============
+  confirmarParticipacion(partidoId) {
+    return this.makeRequest(`/partidos/${partidoId}/confirmar`, {
+      method: 'POST'
+    });
+  }
+
+  // =============== COMENTARIOS ===============
+  agregarComentario(partidoId, comentarioData) {
+    return this.makeRequest(`/partidos/${partidoId}/comentar`, {
+      method: 'POST',
+      body: JSON.stringify(comentarioData)
+    });
+  }
+
+  obtenerComentariosPartido(partidoId) {
+    return this.makeRequest(`/comentarios/partido/${partidoId}`);
+  }
 }
 
 // Crear instancia única del servicio
