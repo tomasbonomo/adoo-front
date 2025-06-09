@@ -20,6 +20,7 @@ import {
 import { Card, Loading, ErrorMessage, SuccessMessage, Button, Badge } from '../common';
 import apiService from '../../services/api';
 import ComentariosSection from '../comentarios/ComentariosSection';
+import JugadoresPartido from './JugadoresPartido';
 
 const PartidoDetails = () => {
   const { id } = useParams();
@@ -429,57 +430,7 @@ const PartidoDetails = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Jugadores ({partido.cantidadJugadoresActual}/{partido.cantidadJugadoresRequeridos})
             </h3>
-            <div className="space-y-3">
-              {/* Organizador */}
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center mr-3">
-                    <User className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{partido.organizador.nombreUsuario}</p>
-                    <p className="text-xs text-blue-600">Organizador</p>
-                  </div>
-                </div>
-                {partido.organizador.nivelJuego && (
-                  <Badge variant="blue">{partido.organizador.nivelJuego}</Badge>
-                )}
-              </div>
-
-              {/* Otros jugadores */}
-              {partido.jugadores
-                .filter(jugador => jugador.id !== partido.organizador.id)
-                .map(jugador => (
-                <div key={jugador.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                      <User className="h-4 w-4 text-gray-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{jugador.nombreUsuario}</p>
-                      {jugador.deporteFavorito && (
-                        <p className="text-xs text-gray-600">{jugador.deporteFavorito}</p>
-                      )}
-                    </div>
-                  </div>
-                  {jugador.nivelJuego && (
-                    <Badge variant="gray">{jugador.nivelJuego}</Badge>
-                  )}
-                </div>
-              ))}
-
-              {/* Espacios vacíos */}
-              {Array.from({ 
-                length: partido.cantidadJugadoresRequeridos - partido.cantidadJugadoresActual 
-              }).map((_, index) => (
-                <div key={index} className="flex items-center p-3 border-2 border-dashed border-gray-200 rounded-lg">
-                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-3">
-                    <Users className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <p className="text-gray-400">Esperando jugador...</p>
-                </div>
-              ))}
-            </div>
+            <JugadoresPartido partido={partido} partidoId={partido.id} />
           </Card>
 
           {/* Información adicional */}
