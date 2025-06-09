@@ -1,4 +1,4 @@
-// API Service para UnoMas - Sin async/await
+// API Service para UnoMas - Con mejor manejo de errores
 import config, { log } from '../config/config';
 
 const API_BASE_URL = config.api.baseUrl;
@@ -21,7 +21,7 @@ class ApiService {
     return headers;
   }
 
-  // Método genérico para hacer requests
+  // Método genérico para hacer requests - MEJORADO
   makeRequest(url, options = {}) {
     const finalUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
     
@@ -30,18 +30,79 @@ class ApiService {
       ...options
     };
 
+    // Log de la request para debugging
+    if (config.app.isDevelopment) {
+      console.log('🚀 API Request:', {
+        url: finalUrl,
+        method: defaultOptions.method || 'GET',
+        headers: defaultOptions.headers,
+        body: defaultOptions.body ? JSON.parse(defaultOptions.body) : null
+      });
+    }
+
     return fetch(finalUrl, defaultOptions)
       .then(response => {
+        // Log de la response para debugging
+        if (config.app.isDevelopment) {
+          console.log(`📡 API Response [${response.status}]:`, {
+            url: finalUrl,
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+          });
+        }
+
         if (!response.ok) {
-          return response.json()
-            .then(errorData => {
-              throw new Error(errorData.mensaje || `HTTP error! status: ${response.status}`);
-            })
-            .catch(() => {
-              throw new Error(`HTTP error! status: ${response.status}`);
+          // Intentar obtener el error del backend
+          return response.text()
+            .then(errorText => {
+              let errorData;
+              try {
+                errorData = JSON.parse(errorText);
+              } catch (e) {
+                // Si no es JSON válido, usar el texto directamente
+                errorData = { mensaje: errorText || `HTTP error! status: ${response.status}` };
+              }
+
+              // Log del error para debugging
+              if (config.app.isDevelopment) {
+                console.error('❌ API Error Details:', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  errorData,
+                  url: finalUrl
+                });
+              }
+
+              const errorMessage = errorData.mensaje || 
+                                 errorData.message || 
+                                 errorData.error || 
+                                 `Error ${response.status}: ${response.statusText}`;
+              
+              throw new Error(errorMessage);
             });
         }
-        return response.json();
+
+        // Intentar parsear la respuesta como JSON
+        return response.text()
+          .then(responseText => {
+            if (!responseText) {
+              return {};
+            }
+            try {
+              return JSON.parse(responseText);
+            } catch (e) {
+              // Si no es JSON válido, retornar el texto
+              return { data: responseText };
+            }
+          });
+      })
+      .catch(error => {
+        // Log del error de red o parsing
+        if (config.app.isDevelopment) {
+          console.error('🔥 Network/Parse Error:', error);
+        }
+        throw error;
       });
   }
 
@@ -113,8 +174,8 @@ class ApiService {
   }
 
   getDeportesTypes() {
-  return this.makeRequest('/deportes/tipos', { skipAuth: true });
-}
+    return this.makeRequest('/deportes/tipos', { skipAuth: true });
+  }
 
   getDeporte(id) {
     return this.makeRequest(`/deportes/${id}`, { skipAuth: true });
@@ -128,10 +189,38 @@ class ApiService {
 
   // =============== PARTIDOS ===============
   createPartido(partidoData) {
+    // Limpiar y preparar los datos antes de enviar
+    const cleanedData = this.preparePartidoData(partidoData);
+    
     return this.makeRequest('/partidos', {
       method: 'POST',
-      body: JSON.stringify(partidoData)
+      body: JSON.stringify(cleanedData)
     });
+  }
+
+  // NUEVO: Método para preparar y limpiar datos del partido
+  preparePartidoData(partidoData) {
+    const cleaned = {
+      tipoDeporte: partidoData.tipoDeporte,
+      cantidadJugadoresRequeridos: parseInt(partidoData.cantidadJugadoresRequeridos),
+      duracion: parseInt(partidoData.duracion),
+      horario: new Date(partidoData.horario).toISOString(),
+      estrategiaEmparejamiento: partidoData.estrategiaEmparejamiento || 'POR_NIVEL',
+      ubicacion: {
+        direccion: partidoData.ubicacion.direccion,
+        // Convertir strings vacíos a null
+        latitud: partidoData.ubicacion.latitud ? parseFloat(partidoData.ubicacion.latitud) : null,
+        longitud: partidoData.ubicacion.longitud ? parseFloat(partidoData.ubicacion.longitud) : null,
+        zona: partidoData.ubicacion.zona || null
+      }
+    };
+
+    // Log de los datos limpiados para debugging
+    if (config.app.isDevelopment) {
+      console.log('🧹 Cleaned Partido Data:', cleaned);
+    }
+
+    return cleaned;
   }
 
   getPartido(id) {
@@ -211,13 +300,18 @@ class ApiService {
     return !!this.token;
   }
 
-  // Métodos de conveniencia para manejo de errores
+  // Métodos de conveniencia para manejo de errores - MEJORADO
   handleApiError(error) {
     console.error('API Error:', error);
 
     // Si el error es del tipo Error lanzado en makeRequest con un mensaje del backend
     if (error.message) {
       return error.message;
+    }
+
+    // Si es un error de red
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      return 'Error de conexión. Verifica tu conexión a internet y que el servidor esté funcionando.';
     }
 
     // Otros chequeos generales
