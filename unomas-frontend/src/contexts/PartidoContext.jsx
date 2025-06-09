@@ -1,4 +1,3 @@
-// src/contexts/PartidoContext.jsx
 import { createContext, useContext, useState } from "react";
 
 const PartidoContext = createContext();
@@ -21,3 +20,5 @@ export function PartidoProvider({ children }) {
     </PartidoContext.Provider>
   );
 }
+
+export { PartidoContext };
