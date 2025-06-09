@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/common';
 import Navbar from './components/layout/Navbar';
+import { PartidoProvider } from './contexts/PartidoContext';
 
 // Auth components
 import Login from './components/auth/Login';
@@ -150,73 +151,75 @@ const NotFound = () => {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <main>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
-              {/* Protected routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/perfil" element={
-                <ProtectedRoute>
-                  <UserProfile />
-                </ProtectedRoute>
-              } />
+      <PartidoProvider>
+        <AuthProvider>
+          <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <main>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                
+                {/* Protected routes */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/perfil" element={
+                  <ProtectedRoute>
+                    <UserProfile />
+                  </ProtectedRoute>
+                } />
 
-              {/* Partido routes */}
-              <Route path="/partidos/buscar" element={
-                <ProtectedRoute>
-                  <SearchPartidos />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/partidos/crear" element={
-                <ProtectedRoute>
-                  <CreatePartido />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/partidos/:id" element={
-                <ProtectedRoute>
-                  <PartidoDetails />
-                </ProtectedRoute>
-              } />
+                {/* Partido routes */}
+                <Route path="/partidos/buscar" element={
+                  <ProtectedRoute>
+                    <SearchPartidos />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/partidos/crear" element={
+                  <ProtectedRoute>
+                    <CreatePartido />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="/partidos/:id" element={
+                  <ProtectedRoute>
+                    <PartidoDetails />
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/partidos/mis-partidos" element={
-                <ProtectedRoute>
-                  <MisPartidos />
-                </ProtectedRoute>
-              } />
+                <Route path="/partidos/mis-partidos" element={
+                  <ProtectedRoute>
+                    <MisPartidos />
+                  </ProtectedRoute>
+                } />
 
-              {/* Estadísticas */}
-              <Route path="/estadisticas" element={
-                <ProtectedRoute>
-                  <Estadisticas />
-                </ProtectedRoute>
-              } />
+                {/* Estadísticas */}
+                <Route path="/estadisticas" element={
+                  <ProtectedRoute>
+                    <Estadisticas />
+                  </ProtectedRoute>
+                } />
 
-              {/* Redirect /partidos to /partidos/buscar */}
-              <Route path="/partidos" element={<Navigate to="/partidos/buscar" replace />} />
+                {/* Redirect /partidos to /partidos/buscar */}
+                <Route path="/partidos" element={<Navigate to="/partidos/buscar" replace />} />
 
-              {/* Default redirect for authenticated users */}
-              <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* 404 route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-        </div>
-      </AuthProvider>
+                {/* Default redirect for authenticated users */}
+                <Route path="/home" element={<Navigate to="/dashboard" replace />} />
+                
+                {/* 404 route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+          </div>
+        </AuthProvider>
+      </PartidoProvider>
     </Router>
   );
 }

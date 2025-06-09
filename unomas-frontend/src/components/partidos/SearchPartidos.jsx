@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useContext } from 'react';
+import { PartidoContext } from '../../contexts/PartidoContext';
 import { Link } from 'react-router-dom';
 import { getDeporteIcon } from  '../../config/config';
 import { 
@@ -15,6 +17,7 @@ import { Card, Loading, ErrorMessage, EmptyState, Badge, Button, Input, Select }
 import apiService from '../../services/api';
 
 const SearchPartidos = () => {
+  const { updatePartido } = useContext(PartidoContext);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [partidos, setPartidos] = useState([]);
@@ -125,6 +128,7 @@ const loadInitialData = () => {
       .then(response => {
         // Actualizar la lista
         searchPartidos();
+        updatePartido(partidoId); // Notifica a todos los componentes dependientes de este partido
         alert(response.mensaje);
       })
       .catch(err => {

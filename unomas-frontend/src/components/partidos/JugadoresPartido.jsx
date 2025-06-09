@@ -1,22 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { User, Users, Badge } from 'lucide-react';
 import apiService from '../../services/api';
+import { usePartido } from '../../contexts/PartidoContext';
 
 const JugadoresPartido = ({ partido, partidoId }) => {
   const [jugadores, setJugadores] = useState(partido.jugadores || []);
   const [organizador, setOrganizador] = useState(partido.organizador);
 
-  useEffect(() => {
-    // Cada 5s actualiza SOLO los jugadores
-    const intervalId = setInterval(() => {
-      apiService.getPartido(partidoId).then(data => {
-        setJugadores(data.jugadores);
-        setOrganizador(data.organizador);
-      });
-    }, 5000);
+  const { lastUpdate } = usePartido();
 
-    return () => clearInterval(intervalId);
-  }, [partidoId]);
+  useEffect(() => {
+    apiService.getPartido(partidoId).then(data => {
+      setJugadores(data.jugadores);
+      setOrganizador(data.organizador);
+    });
+  }, [partidoId, lastUpdate[partidoId]]);
 
   // Usá partido.cantidadJugadoresRequeridos o similar para los slots vacíos
   return (
