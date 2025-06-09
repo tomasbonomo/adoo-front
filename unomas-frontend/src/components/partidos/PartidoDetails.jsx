@@ -32,7 +32,15 @@ const PartidoDetails = () => {
   const [partido, setPartido] = useState(null);
 
   useEffect(() => {
-    loadPartido();
+    loadPartido(); // Carga inicial
+
+    // Refrescar automáticamente cada 5 segundos
+    const intervalId = setInterval(() => {
+      loadPartido();
+    }, 5000); // 5000 ms = 5 segundos
+
+    // Limpiar el intervalo cuando el componente se desmonta
+    return () => clearInterval(intervalId);
   }, [id]);
 
   const loadPartido = () => {
