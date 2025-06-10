@@ -67,7 +67,13 @@ const JugadoresPartido = ({ partido, partidoId }) => {
   };
 
   const getNivelBadge = (nivel) => {
-    if (!nivel) return null;
+    if (!nivel) {
+      return (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+          Sin nivel
+        </span>
+      );
+    }
     
     const nivelColors = {
       'PRINCIPIANTE': 'bg-green-100 text-green-800',
@@ -85,7 +91,7 @@ const JugadoresPartido = ({ partido, partidoId }) => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-full overflow-hidden">
       {/* Header con progreso */}
       <div className="flex items-center justify-between mb-4">
         <h4 className="font-medium text-gray-900">
@@ -118,25 +124,27 @@ const JugadoresPartido = ({ partido, partidoId }) => {
 
       {/* Organizador */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            {getPlayerAvatar(organizador, true)}
-            <div>
-              <div className="flex items-center space-x-2">
-                <p className="font-medium text-gray-900">{organizador.nombreUsuario}</p>
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
-                  Organizador
-                </span>
+        <div className="flex items-center">
+          {getPlayerAvatar(organizador, true)}
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <p className="font-medium text-gray-900">{organizador.nombreUsuario}</p>
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                    Organizador
+                  </span>
+                </div>
+                {organizador.deporteFavorito && (
+                  <p className="text-xs text-blue-600">
+                    Favorito: {organizador.deporteFavorito}
+                  </p>
+                )}
               </div>
-              {organizador.deporteFavorito && (
-                <p className="text-xs text-blue-600">
-                  Favorito: {organizador.deporteFavorito}
-                </p>
-              )}
+              <div className="ml-4">
+                {getNivelBadge(organizador.nivelJuego)}
+              </div>
             </div>
-          </div>
-          <div className="text-right">
-            {getNivelBadge(organizador.nivelJuego)}
           </div>
         </div>
       </div>
@@ -150,24 +158,28 @@ const JugadoresPartido = ({ partido, partidoId }) => {
             className="p-3 bg-gray-50 border border-gray-200 rounded-lg transition-all duration-300 hover:bg-gray-100"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
+              <div className="flex items-center flex-1">
                 {getPlayerAvatar(jugador)}
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-900">{jugador.nombreUsuario}</p>
-                    <span className="text-xs text-gray-500">
-                      Jugador #{index + 2}
-                    </span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-gray-900">{jugador.nombreUsuario}</p>
+                        <span className="text-xs text-gray-500">
+                          Jugador #{index + 2}
+                        </span>
+                      </div>
+                      {jugador.deporteFavorito && (
+                        <p className="text-xs text-gray-600">
+                          Favorito: {jugador.deporteFavorito}
+                        </p>
+                      )}
+                    </div>
+                    <div className="ml-4">
+                      {getNivelBadge(jugador.nivelJuego)}
+                    </div>
                   </div>
-                  {jugador.deporteFavorito && (
-                    <p className="text-xs text-gray-600">
-                      Favorito: {jugador.deporteFavorito}
-                    </p>
-                  )}
                 </div>
-              </div>
-              <div className="text-right">
-                {getNivelBadge(jugador.nivelJuego)}
               </div>
             </div>
           </div>
@@ -183,7 +195,7 @@ const JugadoresPartido = ({ partido, partidoId }) => {
             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
               <Users className="h-5 w-5 text-gray-400" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-gray-400 font-medium">Esperando jugador...</p>
               <p className="text-xs text-gray-300">Slot disponible</p>
             </div>
