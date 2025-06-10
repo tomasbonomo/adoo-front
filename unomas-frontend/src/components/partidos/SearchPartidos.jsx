@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useContext } from 'react';
 import { PartidoContext } from '../../contexts/PartidoContext';
+import { useGlobalNotifications } from '../../contexts/GlobalNotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { getDeporteIcon } from  '../../config/config';
 import { 
@@ -17,7 +19,11 @@ import { Card, Loading, ErrorMessage, EmptyState, Badge, Button, Input, Select }
 import apiService from '../../services/api';
 
 const SearchPartidos = () => {
-  const { updatePartido } = useContext(PartidoContext);
+  // ✅ Contextos
+  const { notifyPartidoUpdated } = useContext(PartidoContext);
+  const { notifyPlayerJoined, notifyPartidoComplete, notifySuccess, notifyError } = useGlobalNotifications();
+  const { user } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [partidos, setPartidos] = useState([]);
@@ -123,18 +129,50 @@ const loadInitialData = () => {
     setCurrentPage(0);
   };
 
-  const joinPartido = (partidoId) => {
-    apiService.joinPartido(partidoId)
-      .then(response => {
-        // Actualizar la lista
-        searchPartidos();
-        updatePartido(partidoId); // Notifica a todos los componentes dependientes de este partido
-        alert(response.mensaje);
-      })
-      .catch(err => {
-        console.error('Error uniéndose al partido:', err);
-        alert(apiService.handleApiError(err));
+  // ✅ MEJORADO: Función joinPartido con notificaciones globales
+  const joinPartido = async (partidoId) => {
+    try {
+      // Obtener datos del partido antes de unirse
+      const partidoAntes = partidos.find(p => p.id === partidoId);
+      
+      // Hacer la solicitud para unirse
+      const response = await apiService.joinPartido(partidoId);
+      
+      // ✅ NOTIFICACIÓN GLOBAL: Jugador se unió
+      notifyPlayerJoined(user.nombreUsuario, {
+        id: partidoId,
+        deporte: partidoAntes.deporte.nombre
       });
+
+      // Actualizar la lista local inmediatamente
+      searchPartidos();
+      
+      // Notificar a otros componentes
+      notifyPartidoUpdated(partidoId);
+
+      // Obtener el partido actualizado para verificar si está completo
+      setTimeout(async () => {
+        try {
+          const partidoDespues = await apiService.getPartido(partidoId);
+          
+          // ✅ NOTIFICACIÓN GLOBAL: Partido completo
+          if (partidoDespues.cantidadJugadoresActual >= partidoDespues.cantidadJugadoresRequeridos &&
+              partidoAntes.cantidadJugadoresActual < partidoAntes.cantidadJugadoresRequeridos) {
+            notifyPartidoComplete({
+              id: partidoId,
+              deporte: partidoDespues.deporte.nombre
+            });
+          }
+        } catch (err) {
+          console.error('Error verificando estado del partido:', err);
+        }
+      }, 1000); // Esperar 1 segundo para que se actualice en el backend
+
+    } catch (err) {
+      console.error('Error uniéndose al partido:', err);
+      // ✅ NOTIFICACIÓN GLOBAL: Error
+      notifyError(apiService.handleApiError(err), '❌ Error al unirse');
+    }
   };
 
   const getEstadoBadge = (estado) => {
@@ -372,9 +410,9 @@ const loadInitialData = () => {
                             <span className="text-gray-300">•</span>
                             <button
                               onClick={() => joinPartido(partido.id)}
-                              className="text-green-600 hover:text-green-700 text-sm font-medium"
+                              className="text-green-600 hover:text-green-700 text-sm font-medium hover:bg-green-50 px-2 py-1 rounded transition-colors"
                             >
-                              Unirse al partido
+                              🚀 Unirse al partido
                             </button>
                           </>
                         )}

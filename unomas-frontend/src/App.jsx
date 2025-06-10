@@ -4,6 +4,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/common';
 import Navbar from './components/layout/Navbar';
 import { PartidoProvider } from './contexts/PartidoContext';
+import { GlobalNotificationProvider } from './contexts/GlobalNotificationContext';
+import GlobalNotificationToast from './components/notificaciones/GlobalNotificationToast';
 
 // Auth components
 import Login from './components/auth/Login';
@@ -13,6 +15,7 @@ import Register from './components/auth/Register';
 import Dashboard from './components/dashboard/Dashboard';
 import UserProfile from './components/user/UserProfile';
 import Estadisticas from './components/estadisticas/Estadisticas';
+import NotificationsPage from './components/notificaciones/NotificationsPage';
 
 // Partido components
 import SearchPartidos from './components/partidos/SearchPartidos';
@@ -151,75 +154,88 @@ const NotFound = () => {
 function App() {
   return (
     <Router>
-      <PartidoProvider>
-        <AuthProvider>
-          <div className="min-h-screen bg-gray-50">
-            <Navbar />
-            <main>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                
-                {/* Protected routes */}
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/perfil" element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                } />
+      <GlobalNotificationProvider>
+        <PartidoProvider>
+          <AuthProvider>
+            <div className="min-h-screen bg-gray-50">
+              <Navbar />
+              
+              {/* ✅ NUEVO: Componente de notificaciones globales */}
+              <GlobalNotificationToast />
+              
+              <main>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  
+                  {/* Protected routes */}
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/perfil" element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  } />
 
-                {/* Partido routes */}
-                <Route path="/partidos/buscar" element={
-                  <ProtectedRoute>
-                    <SearchPartidos />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/partidos/crear" element={
-                  <ProtectedRoute>
-                    <CreatePartido />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/partidos/:id" element={
-                  <ProtectedRoute>
-                    <PartidoDetails />
-                  </ProtectedRoute>
-                } />
+                  {/* Notificaciones */}
+                  <Route path="/notificaciones" element={
+                    <ProtectedRoute>
+                      <NotificationsPage />
+                    </ProtectedRoute>
+                  } />
 
-                <Route path="/partidos/mis-partidos" element={
-                  <ProtectedRoute>
-                    <MisPartidos />
-                  </ProtectedRoute>
-                } />
+                  {/* Partido routes */}
+                  <Route path="/partidos/buscar" element={
+                    <ProtectedRoute>
+                      <SearchPartidos />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/partidos/crear" element={
+                    <ProtectedRoute>
+                      <CreatePartido />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="/partidos/:id" element={
+                    <ProtectedRoute>
+                      <PartidoDetails />
+                    </ProtectedRoute>
+                  } />
 
-                {/* Estadísticas */}
-                <Route path="/estadisticas" element={
-                  <ProtectedRoute>
-                    <Estadisticas />
-                  </ProtectedRoute>
-                } />
+                  <Route path="/partidos/mis-partidos" element={
+                    <ProtectedRoute>
+                      <MisPartidos />
+                    </ProtectedRoute>
+                  } />
 
-                {/* Redirect /partidos to /partidos/buscar */}
-                <Route path="/partidos" element={<Navigate to="/partidos/buscar" replace />} />
+                  {/* Estadísticas */}
+                  <Route path="/estadisticas" element={
+                    <ProtectedRoute>
+                      <Estadisticas />
+                    </ProtectedRoute>
+                  } />
 
-                {/* Default redirect for authenticated users */}
-                <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-                
-                {/* 404 route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-          </div>
-        </AuthProvider>
-      </PartidoProvider>
+                  {/* Redirect /partidos to /partidos/buscar */}
+                  <Route path="/partidos" element={<Navigate to="/partidos/buscar" replace />} />
+
+                  {/* Default redirect for authenticated users */}
+                  <Route path="/home" element={<Navigate to="/dashboard" replace />} />
+                  
+                  {/* 404 route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </AuthProvider>
+        </PartidoProvider>
+      </GlobalNotificationProvider>
     </Router>
   );
 }

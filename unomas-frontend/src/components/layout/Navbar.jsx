@@ -11,7 +11,8 @@ import {
   Plus,
   BarChart3,
   Settings,
-  Trophy
+  Trophy,
+  Bell
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -55,6 +56,7 @@ const Navbar = () => {
     { to: '/dashboard', label: 'Dashboard', icon: Home },
     { to: '/partidos/buscar', label: 'Buscar Partidos', icon: Search },
     { to: '/partidos/crear', label: 'Crear Partido', icon: Plus },
+    { to: '/notificaciones', label: 'Notificaciones', icon: Bell }, // NUEVA OPCIÓN
     { to: '/estadisticas', label: 'Estadísticas', icon: BarChart3 },
     ...(isAdmin() ? [{ to: '/admin', label: 'Administración', icon: Settings }] : [])
   ];

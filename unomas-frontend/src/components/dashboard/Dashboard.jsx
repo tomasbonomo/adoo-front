@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-
-
-// ✅ DESPUÉS (línea 21):
 import { getDeporteIcon } from '../../config/config';
-
-
 import { 
   Plus, 
   Search, 
@@ -20,6 +15,7 @@ import {
   Activity
 } from 'lucide-react';
 import { Card, Loading, ErrorMessage, EmptyState, Badge } from '../common';
+import NotificationCenter from '../notificaciones/NotificationCenter'; // NUEVO IMPORT
 import apiService from '../../services/api';
 
 const Dashboard = () => {
@@ -96,7 +92,6 @@ const Dashboard = () => {
       });
   };
 
- 
   const getEstadoBadge = (estado) => {
     const badgeProps = {
       'NECESITAMOS_JUGADORES': { variant: 'yellow', text: 'Buscando jugadores' },
@@ -196,6 +191,11 @@ const Dashboard = () => {
           </Card>
         </div>
       )}
+
+      {/* NUEVO: Centro de Notificaciones */}
+      <div className="mb-8">
+        <NotificationCenter />
+      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
