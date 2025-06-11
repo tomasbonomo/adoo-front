@@ -15,7 +15,15 @@ import {
   Trophy,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Zap,
+  Activity,
+  Target,
+  Globe,
+  History,
+  BarChart3,
+  Bell,
+  RefreshCw
 } from 'lucide-react';
 import { Card, Loading, ErrorMessage, SuccessMessage, Button, Badge } from '../common';
 import apiService from '../../services/api';
@@ -31,26 +39,55 @@ const PartidoDetails = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [partido, setPartido] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
   useEffect(() => {
     loadPartido();
-    // NO más intervalos ni timers
-  }, [id]);
+    
+    // ✅ NUEVO: Auto-refresh cada 30 segundos para captar cambios automáticos
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        loadPartidoSilently();
+      }, 30000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [id, autoRefresh]);
 
   const loadPartido = () => {
     setLoading(true);
     setError(null);
+    loadPartidoData();
+  };
 
+  // ✅ NUEVO: Carga silenciosa para auto-refresh
+  const loadPartidoSilently = () => {
+    loadPartidoData(true);
+  };
+
+  const loadPartidoData = (silent = false) => {
     apiService.getPartido(id)
       .then(partidoData => {
+        // ✅ DETECTAR CAMBIOS para notificar al usuario
+        if (partido && partidoData.estado !== partido.estado) {
+          setSuccess(`Estado cambiado automáticamente: ${partidoData.estado}`);
+        }
+        
         setPartido(partidoData);
+        setLastUpdate(new Date());
       })
       .catch(err => {
         console.error('Error cargando partido:', err);
-        setError(apiService.handleApiError(err));
+        if (!silent) {
+          setError(apiService.handleApiError(err));
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (!silent) setLoading(false);
       });
   };
 
@@ -62,7 +99,6 @@ const PartidoDetails = () => {
     apiService.joinPartido(id)
       .then(response => {
         setSuccess(response.mensaje);
-        // Recargar datos del partido
         loadPartido();
       })
       .catch(err => {
@@ -110,44 +146,49 @@ const PartidoDetails = () => {
     return (isParticipant() || isOrganizador()) && partido.estado === 'FINALIZADO';
   };
 
-
   const getEstadoBadge = (estado) => {
     const badgeProps = {
       'NECESITAMOS_JUGADORES': { 
         variant: 'yellow', 
         text: 'Buscando jugadores',
         icon: Users,
-        description: 'Este partido está buscando más jugadores para completar el equipo.'
+        description: 'Este partido está buscando más jugadores para completar el equipo.',
+        autoNext: 'Se completará automáticamente cuando se unan suficientes jugadores'
       },
       'PARTIDO_ARMADO': { 
         variant: 'blue', 
         text: 'Partido armado',
         icon: CheckCircle,
-        description: 'Ya se completó el número de jugadores. Esperando confirmación.'
+        description: 'Ya se completó el número de jugadores. Esperando confirmación.',
+        autoNext: 'Requiere confirmación manual del organizador'
       },
       'CONFIRMADO': { 
         variant: 'green', 
         text: 'Confirmado',
         icon: Calendar,
-        description: 'El partido está confirmado y listo para jugarse.'
+        description: 'El partido está confirmado y listo para jugarse.',
+        autoNext: 'Comenzará automáticamente a la hora programada'
       },
       'EN_JUEGO': { 
         variant: 'indigo', 
         text: 'En juego',
         icon: Trophy,
-        description: 'El partido está actualmente en curso.'
+        description: 'El partido está actualmente en curso.',
+        autoNext: 'Finalizará automáticamente después de la duración programada'
       },
       'FINALIZADO': { 
         variant: 'gray', 
         text: 'Finalizado',
         icon: Trophy,
-        description: 'Este partido ya terminó.'
+        description: 'Este partido ya terminó.',
+        autoNext: 'Estado final - no hay más transiciones'
       },
       'CANCELADO': { 
         variant: 'red', 
         text: 'Cancelado',
         icon: XCircle,
-        description: 'Este partido fue cancelado.'
+        description: 'Este partido fue cancelado.',
+        autoNext: 'Estado final - no hay más transiciones'
       }
     };
 
@@ -155,8 +196,55 @@ const PartidoDetails = () => {
       variant: 'gray', 
       text: estado, 
       icon: AlertCircle,
-      description: 'Estado desconocido.'
+      description: 'Estado desconocido.',
+      autoNext: 'Sin información de transición'
     };
+  };
+
+  // ✅ NUEVO: Obtener icono de estrategia
+  const getEstrategiaIcon = (estrategia) => {
+    const iconos = {
+      'POR_NIVEL': Target,
+      'POR_CERCANIA': Globe,
+      'POR_HISTORIAL': History
+    };
+    return iconos[estrategia] || BarChart3;
+  };
+
+  // ✅ NUEVO: Calcular tiempo hasta próxima transición automática
+  const getTimeToNextTransition = () => {
+    if (!partido) return null;
+    
+    const now = new Date();
+    const partidoDate = new Date(partido.horario);
+    
+    if (partido.estado === 'CONFIRMADO') {
+      const timeDiff = partidoDate - now;
+      if (timeDiff > 0) {
+        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        return {
+          type: 'start',
+          time: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
+          message: 'hasta el inicio automático'
+        };
+      }
+    }
+    
+    if (partido.estado === 'EN_JUEGO') {
+      const endTime = new Date(partidoDate.getTime() + partido.duracion * 60 * 1000);
+      const timeDiff = endTime - now;
+      if (timeDiff > 0) {
+        const minutes = Math.floor(timeDiff / (1000 * 60));
+        return {
+          type: 'end',
+          time: `${minutes}m`,
+          message: 'hasta la finalización automática'
+        };
+      }
+    }
+    
+    return null;
   };
 
   const formatDate = (dateString) => {
@@ -219,11 +307,13 @@ const PartidoDetails = () => {
   const estadoInfo = getEstadoBadge(partido.estado);
   const fechaInfo = formatDate(partido.horario);
   const IconoEstado = estadoInfo.icon;
+  const IconoEstrategia = getEstrategiaIcon(partido.estrategiaEmparejamiento);
+  const nextTransition = getTimeToNextTransition();
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Navegación */}
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center text-gray-600 hover:text-gray-900"
@@ -231,12 +321,55 @@ const PartidoDetails = () => {
           <ArrowLeft className="h-5 w-5 mr-2" />
           Volver
         </button>
+        
+        {/* ✅ NUEVO: Controles de auto-refresh */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`flex items-center text-sm px-3 py-1 rounded-lg ${
+              autoRefresh ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            <Activity className="w-4 h-4 mr-1" />
+            {autoRefresh ? 'Auto-actualización ON' : 'Auto-actualización OFF'}
+          </button>
+          <button
+            onClick={loadPartido}
+            className="flex items-center text-sm px-3 py-1 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200"
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {error && <ErrorMessage error={error} onClose={() => setError(null)} />}
       {success && <SuccessMessage message={success} onClose={() => setSuccess(null)} />}
 
-      {/* Header del partido */}
+      {/* ✅ NUEVO: Banner de transición automática */}
+      {nextTransition && (
+        <Card className="p-4 mb-6 bg-purple-50 border-purple-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Zap className="h-5 w-5 text-purple-600 mr-2" />
+              <div>
+                <p className="font-medium text-purple-900">
+                  Transición Automática: {nextTransition.time} {nextTransition.message}
+                </p>
+                <p className="text-sm text-purple-700">
+                  El sistema cambiará el estado automáticamente
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-bold text-purple-600">{nextTransition.time}</div>
+              <div className="text-xs text-purple-500">restante</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Header del partido mejorado */}
       <Card className="p-6 mb-8">
         <div className="flex items-start justify-between">
           <div className="flex items-center">
@@ -247,29 +380,51 @@ const PartidoDetails = () => {
               </h1>
               <p className="text-gray-600">
                 Organizado por {partido.organizador.nombreUsuario}
+                {partido.organizador.nivelJuego && (
+                  <span className="ml-2 text-sm">
+                    • Nivel: {partido.organizador.nivelJuego}
+                  </span>
+                )}
               </p>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right space-y-2">
             <Badge variant={estadoInfo.variant} className="mb-2">
               <IconoEstado className="w-4 h-4 mr-1" />
               {estadoInfo.text}
             </Badge>
+            <div>
+              <Badge variant="blue" className="mb-1">
+                <IconoEstrategia className="w-3 h-3 mr-1" />
+                {partido.estrategiaEmparejamiento}
+              </Badge>
+            </div>
             {partido.compatibilidad && (
               <div>
                 <Badge variant="green">
                   <Star className="w-3 h-3 mr-1" />
-                  {Math.round(partido.compatibilidad * 100)}% match
+                  {Math.round(partido.compatibilidad * 100)}% compatible
                 </Badge>
               </div>
             )}
           </div>
         </div>
 
+        {/* ✅ NUEVO: Información de estado automático */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center text-sm text-gray-600">
-            <IconoEstado className="h-4 w-4 mr-2" />
-            {estadoInfo.description}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center text-sm text-gray-600">
+              <IconoEstado className="h-4 w-4 mr-2" />
+              <div>
+                <p className="font-medium">{estadoInfo.description}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Próxima transición: {estadoInfo.autoNext}
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Última actualización: {lastUpdate.toLocaleTimeString()}
+            </div>
           </div>
         </div>
       </Card>
@@ -277,7 +432,7 @@ const PartidoDetails = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Información principal */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Detalles del partido */}
+          {/* Detalles del partido mejorados */}
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Partido</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -304,14 +459,27 @@ const PartidoDetails = () => {
                   <p className="text-sm text-gray-600">
                     {partido.cantidadJugadoresActual} de {partido.cantidadJugadoresRequeridos}
                   </p>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                    <div 
+                      className="bg-blue-600 h-1.5 rounded-full"
+                      style={{ 
+                        width: `${(partido.cantidadJugadoresActual / partido.cantidadJugadoresRequeridos) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center">
-                <Settings className="h-5 w-5 text-gray-400 mr-3" />
+                <IconoEstrategia className="h-5 w-5 text-gray-400 mr-3" />
                 <div>
                   <p className="font-medium text-gray-900">Estrategia</p>
                   <p className="text-sm text-gray-600">{partido.estrategiaEmparejamiento}</p>
+                  {partido.compatibilidad && (
+                    <p className="text-xs text-green-600 mt-1">
+                      Compatibilidad: {Math.round(partido.compatibilidad * 100)}%
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -336,6 +504,31 @@ const PartidoDetails = () => {
             </div>
           </Card>
 
+          {/* Sistema automático */}
+          <Card className="p-6 bg-purple-50 border-purple-200">
+            <h3 className="text-lg font-semibold text-purple-900 mb-4 flex items-center">
+              <Zap className="h-5 w-5 mr-2" />
+              Sistema Automático
+            </h3>
+            <div className="space-y-3 text-sm text-purple-700">
+              <div className="flex items-center justify-between">
+                <span>Transiciones de estado</span>
+                <Badge variant="purple">Automático</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Notificaciones</span>
+                <Badge variant="purple">Inteligentes</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Emparejamiento</span>
+                <Badge variant="purple">{partido.estrategiaEmparejamiento}</Badge>
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-purple-600">
+              Este partido utiliza el sistema automático de UnoMas para gestionar estados y notificaciones.
+            </div>
+          </Card>
+
           {/* Reglas del deporte */}
           {partido.deporte.reglasBasicas && (
             <Card className="p-6">
@@ -351,24 +544,28 @@ const PartidoDetails = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Acciones */}
+          {/* Acciones mejoradas */}
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones</h3>
             <div className="space-y-3">
               {canJoin() && (
                 <Button onClick={joinPartido} loading={actionLoading} className="w-full" size="lg">
+                  <Users className="w-4 h-4 mr-2" />
                   Unirse al Partido
                 </Button>
               )}
 
-              {/* NUEVO: Confirmación de participación */}
+              {/* Confirmación de participación */}
               {isParticipant() && partido.estado === 'PARTIDO_ARMADO' && (
                 <div className="space-y-2">
                   <div className="p-3 bg-yellow-50 rounded-lg">
                     <div className="flex items-center text-yellow-700">
-                      <AlertCircle className="h-5 w-5 mr-2" />
+                      <Bell className="h-5 w-5 mr-2" />
                       <span className="text-sm font-medium">Confirma tu participación</span>
                     </div>
+                    <p className="text-xs text-yellow-600 mt-1">
+                      El partido se confirmará automáticamente cuando todos confirmen
+                    </p>
                   </div>
                   <Button onClick={confirmarParticipacion} loading={actionLoading} variant="success" className="w-full">
                     <CheckCircle className="w-4 h-4 mr-2" />
@@ -383,6 +580,9 @@ const PartidoDetails = () => {
                     <CheckCircle className="h-5 w-5 mr-2" />
                     <span className="font-medium">Ya estás en este partido</span>
                   </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Recibirás notificaciones automáticas de cambios
+                  </p>
                 </div>
               )}
 
@@ -393,6 +593,9 @@ const PartidoDetails = () => {
                       <User className="h-5 w-5 mr-2" />
                       <span className="font-medium">Eres el organizador</span>
                     </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Gestiona el partido con transiciones automáticas
+                    </p>
                   </div>
                   {canManage() && (
                     <>
@@ -426,9 +629,9 @@ const PartidoDetails = () => {
             <JugadoresPartido partido={partido} partidoId={partido.id} />
           </Card>
 
-          {/* Información adicional */}
+          {/* Información técnica */}
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Información</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Técnica</h3>
             <div className="space-y-3 text-sm text-gray-600">
               <div>
                 <span className="font-medium">Creado:</span> {formatDate(partido.createdAt).short}
@@ -436,17 +639,23 @@ const PartidoDetails = () => {
               <div>
                 <span className="font-medium">ID del partido:</span> #{partido.id}
               </div>
-              {partido.estrategiaEmparejamiento === 'POR_NIVEL' && (
-                <div className="p-2 bg-amber-50 rounded text-amber-700">
-                  <p className="text-xs">
-                    Este partido usa emparejamiento por nivel de habilidad
-                  </p>
-                </div>
-              )}
+              <div>
+                <span className="font-medium">Sistema:</span> Automático v2.0
+              </div>
+              <div>
+                <span className="font-medium">Auto-refresh:</span> {autoRefresh ? 'Activo' : 'Inactivo'}
+              </div>
+              <div className="pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  Este partido utiliza el sistema inteligente de UnoMas con transiciones automáticas 
+                  de estado y notificaciones en tiempo real.
+                </p>
+              </div>
             </div>
           </Card>
         </div>
       </div>
+
       {/* Comentarios para partidos finalizados */}
       {partido.estado === 'FINALIZADO' && (
         <ComentariosSection partidoId={partido.id} canComment={canComment()} />

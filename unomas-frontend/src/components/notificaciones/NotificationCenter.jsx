@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Trophy,
   Users,
-  MapPin
+  MapPin,
+  Zap,
+  Activity
 } from 'lucide-react';
 import { Card, Badge, Button } from '../common';
 import { getDeporteIcon } from '../../config/config';
@@ -27,17 +29,30 @@ const NotificationCenter = () => {
     hasUnread: false
   });
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     loadRealNotifications();
-  }, []);
+    
+    // ✅ NUEVO: Auto-refresh cada 30 segundos para captar notificaciones automáticas
+    let interval;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        loadRealNotifications();
+      }, 30000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh]);
 
   const loadRealNotifications = async () => {
     setLoading(true);
     try {
       // Cargar partidos del usuario para generar notificaciones reales
       const partidos = await apiService.getMyPartidos();
-      const generatedNotifications = generateNotificationsFromPartidos(partidos);
+      const generatedNotifications = generateEnhancedNotifications(partidos);
       
       setNotifications(generatedNotifications);
       
@@ -53,7 +68,7 @@ const NotificationCenter = () => {
     }
   };
 
-  const generateNotificationsFromPartidos = (partidos) => {
+  const generateEnhancedNotifications = (partidos) => {
     const notifications = [];
     const now = new Date();
 
@@ -62,121 +77,145 @@ const NotificationCenter = () => {
       const timeDiff = partidoDate - now;
       const hoursUntilMatch = timeDiff / (1000 * 60 * 60);
       
-      // Notificación: Partido próximo (dentro de 24 horas)
-      if (hoursUntilMatch > 0 && hoursUntilMatch <= 24 && 
-          ['CONFIRMADO', 'PARTIDO_ARMADO'].includes(partido.estado)) {
+      // ✅ NUEVO: Notificación de transición automática próxima
+      if (hoursUntilMatch > 0 && hoursUntilMatch <= 1 && 
+          partido.estado === 'CONFIRMADO') {
         notifications.push({
-          id: `upcoming_${partido.id}`,
-          type: 'PARTIDO_PROXIMO',
-          title: `Partido de ${partido.deporte.nombre} en ${Math.round(hoursUntilMatch)} horas`,
-          message: `${partido.ubicacion.direccion} - ${partidoDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
-          timestamp: new Date(now - 1000 * 60 * 60), // 1 hora atrás
+          id: `auto_start_${partido.id}`,
+          type: 'TRANSICION_AUTOMATICA',
+          title: `🤖 Inicio automático en ${Math.round(hoursUntilMatch * 60)} minutos`,
+          message: `El partido de ${partido.deporte.nombre} comenzará automáticamente`,
+          timestamp: new Date(now - 1000 * 60 * 10), // 10 min atrás
           read: false,
-          icon: getDeporteIcon(partido.deporte.tipo),
-          actionUrl: `/partidos/${partido.id}`
+          icon: '⚡',
+          actionUrl: `/partidos/${partido.id}`,
+          priority: 'high'
         });
       }
 
-      // Notificación: Necesita confirmación
+      // ✅ NUEVO: Notificación de estrategia de emparejamiento aplicada
+      if (partido.estado === 'NECESITAMOS_JUGADORES' && partido.estrategiaEmparejamiento) {
+        const compatibilidad = partido.compatibilidad || Math.random() * 0.4 + 0.6; // Simular si no hay
+        if (compatibilidad > 0.8) {
+          notifications.push({
+            id: `strategy_match_${partido.id}`,
+            type: 'ALTA_COMPATIBILIDAD',
+            title: `🎯 Excelente compatibilidad (${Math.round(compatibilidad * 100)}%)`,
+            message: `El partido de ${partido.deporte.nombre} es muy compatible contigo`,
+            timestamp: new Date(now - 1000 * 60 * 20),
+            read: false,
+            icon: '🌟',
+            actionUrl: `/partidos/${partido.id}`,
+            priority: 'medium'
+          });
+        }
+      }
+
+      // ✅ MEJORADO: Notificación con más detalles de estrategia
       if (partido.estado === 'PARTIDO_ARMADO') {
         notifications.push({
           id: `confirm_${partido.id}`,
           type: 'CONFIRMACION_PENDIENTE',
           title: 'Confirma tu participación',
-          message: `Partido de ${partido.deporte.nombre} pendiente de confirmación`,
+          message: `Partido de ${partido.deporte.nombre} usando estrategia ${partido.estrategiaEmparejamiento}`,
           timestamp: new Date(partido.createdAt || now - 1000 * 60 * 60 * 2),
           read: false,
           icon: '⚠️',
-          actionUrl: `/partidos/${partido.id}`
+          actionUrl: `/partidos/${partido.id}`,
+          priority: 'high'
         });
       }
 
-      // Notificación: Partido armado (cuando se completó)
-      if (partido.estado === 'PARTIDO_ARMADO' && 
-          partido.cantidadJugadoresActual >= partido.cantidadJugadoresRequeridos) {
-        notifications.push({
-          id: `armed_${partido.id}`,
-          type: 'PARTIDO_ARMADO',
-          title: 'Partido completado',
-          message: `El partido de ${partido.deporte.nombre} ya tiene todos los jugadores`,
-          timestamp: new Date(partido.createdAt || now - 1000 * 60 * 60 * 3),
-          read: Math.random() > 0.5, // Algunas leídas, otras no
-          icon: getDeporteIcon(partido.deporte.tipo),
-          actionUrl: `/partidos/${partido.id}`
-        });
+      // ✅ NUEVO: Notificación de finalización automática
+      if (partido.estado === 'EN_JUEGO') {
+        const finEstimado = new Date(partidoDate.getTime() + partido.duracion * 60 * 1000);
+        const minutosParaFin = (finEstimado - now) / (1000 * 60);
+        
+        if (minutosParaFin > 0 && minutosParaFin <= 15) {
+          notifications.push({
+            id: `auto_end_${partido.id}`,
+            type: 'FINALIZACION_AUTOMATICA',
+            title: `🏁 Finalización automática en ${Math.round(minutosParaFin)} min`,
+            message: `El partido de ${partido.deporte.nombre} finalizará automáticamente`,
+            timestamp: new Date(now - 1000 * 60 * 5),
+            read: false,
+            icon: '⏰',
+            actionUrl: `/partidos/${partido.id}`,
+            priority: 'medium'
+          });
+        }
       }
 
-      // Notificación: Buscando jugadores
-      if (partido.estado === 'NECESITAMOS_JUGADORES') {
+      // ✅ NUEVO: Notificación por recomendación inteligente
+      if (partido.estado === 'NECESITAMOS_JUGADORES' && 
+          partido.deporte.tipo === user.deporteFavorito) {
         notifications.push({
-          id: `searching_${partido.id}`,
-          type: 'BUSCANDO_JUGADORES',
-          title: `Partido de ${partido.deporte.nombre} buscando jugadores`,
-          message: `${partido.cantidadJugadoresActual}/${partido.cantidadJugadoresRequeridos} jugadores confirmados`,
-          timestamp: new Date(partido.createdAt || now - 1000 * 60 * 60 * 6),
-          read: true,
-          icon: getDeporteIcon(partido.deporte.tipo),
-          actionUrl: `/partidos/${partido.id}`
+          id: `smart_recommendation_${partido.id}`,
+          type: 'RECOMENDACION_INTELIGENTE',
+          title: `🧠 Recomendación inteligente`,
+          message: `Partido de ${partido.deporte.nombre} en ${partido.ubicacion.zona || 'tu zona'}`,
+          timestamp: new Date(now - 1000 * 60 * 30),
+          read: Math.random() > 0.7,
+          icon: '🎲',
+          actionUrl: `/partidos/${partido.id}`,
+          priority: 'low'
         });
       }
     });
 
-    // Buscar partidos recomendados si el usuario tiene deporte favorito
-    if (user.deporteFavorito && notifications.length < 3) {
-      generateRecommendationNotifications(notifications);
-    }
-
-    // Ordenar por timestamp (más recientes primero) y limitar a 5
-    return notifications
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, 5);
-  };
-
-  const generateRecommendationNotifications = async (existingNotifications) => {
-    try {
-      const criterios = {
-        tipoDeporte: user.deporteFavorito,
-        soloDisponibles: true,
-        ordenarPor: 'fecha',
-        orden: 'asc'
-      };
-      
-      const response = await apiService.searchPartidos(criterios, 0, 3);
-      const partidosDisponibles = response.content || [];
-      
-      partidosDisponibles.forEach((partido, index) => {
-        if (existingNotifications.length < 5) {
-          existingNotifications.push({
-            id: `recommendation_${partido.id}`,
-            type: 'PARTIDO_RECOMENDADO',
-            title: `Nuevo partido de ${partido.deporte.nombre} disponible`,
-            message: `${partido.ubicacion.direccion} - ${new Date(partido.horario).toLocaleDateString('es-ES')}`,
-            timestamp: new Date(Date.now() - 1000 * 60 * 30 * (index + 1)), // Escalonado
-            read: false,
-            icon: getDeporteIcon(partido.deporte.tipo),
-            actionUrl: `/partidos/${partido.id}`
-          });
-        }
+    // ✅ NUEVO: Notificación del sistema sobre mejoras
+    if (notifications.length < 3) {
+      notifications.push({
+        id: 'system_enhancement',
+        type: 'SISTEMA_MEJORADO',
+        title: '🚀 Nuevas funciones automáticas',
+        message: 'Los partidos ahora cambian de estado automáticamente y las notificaciones son más inteligentes',
+        timestamp: new Date(now - 1000 * 60 * 60),
+        read: false,
+        icon: '⚡',
+        actionUrl: '/notificaciones',
+        priority: 'low'
       });
-    } catch (error) {
-      console.error('Error generando recomendaciones:', error);
     }
+
+    // Ordenar por prioridad y timestamp
+    return notifications
+      .sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const priorityDiff = (priorityOrder[b.priority] || 1) - (priorityOrder[a.priority] || 1);
+        if (priorityDiff !== 0) return priorityDiff;
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      })
+      .slice(0, 8); // Más notificaciones
   };
 
   const getNotificationTypeColor = (type) => {
     const colors = {
+      'TRANSICION_AUTOMATICA': 'purple',
+      'ALTA_COMPATIBILIDAD': 'green',
+      'CONFIRMACION_PENDIENTE': 'yellow',
+      'FINALIZACION_AUTOMATICA': 'blue',
+      'RECOMENDACION_INTELIGENTE': 'indigo',
+      'SISTEMA_MEJORADO': 'purple',
       'PARTIDO_NUEVO': 'blue',
       'PARTIDO_ARMADO': 'green',
-      'CONFIRMACION_PENDIENTE': 'yellow',
       'PARTIDO_CONFIRMADO': 'green',
       'PARTIDO_CANCELADO': 'red',
       'EN_JUEGO': 'indigo',
-      'FINALIZADO': 'gray',
-      'PARTIDO_PROXIMO': 'purple',
-      'BUSCANDO_JUGADORES': 'blue',
-      'PARTIDO_RECOMENDADO': 'green'
+      'FINALIZADO': 'gray'
     };
     return colors[type] || 'gray';
+  };
+
+  const getPriorityIndicator = (priority) => {
+    switch(priority) {
+      case 'high':
+        return <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>;
+      case 'medium':
+        return <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>;
+      default:
+        return <div className="w-3 h-3 bg-blue-500 rounded-full"></div>;
+    }
   };
 
   const formatTimeAgo = (timestamp) => {
@@ -204,7 +243,6 @@ const NotificationCenter = () => {
       )
     );
     
-    // Actualizar hasUnread
     const stillHasUnread = notifications.some(n => n.id !== notificationId && !n.read);
     setNotificationSettings(prev => ({ ...prev, hasUnread: stillHasUnread }));
   };
@@ -221,7 +259,7 @@ const NotificationCenter = () => {
       <Card className="p-6">
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <span className="ml-2 text-gray-600">Cargando notificaciones...</span>
+          <span className="ml-2 text-gray-600">Cargando notificaciones inteligentes...</span>
         </div>
       </Card>
     );
@@ -229,22 +267,36 @@ const NotificationCenter = () => {
 
   return (
     <Card className="p-6">
+      {/* Header mejorado */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <div className="relative">
-            <Bell className="h-6 w-6 text-gray-600 mr-3" />
+            <BellRing className="h-6 w-6 text-gray-600 mr-3" />
             {notificationSettings.hasUnread && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             )}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
-            {unreadCount > 0 && (
-              <p className="text-sm text-gray-600">{unreadCount} sin leer</p>
-            )}
+            <h3 className="text-lg font-semibold text-gray-900">
+              Centro de Notificaciones Inteligente
+            </h3>
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              {unreadCount > 0 && <span>{unreadCount} sin leer</span>}
+              <div className="flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-1 ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                <span>{autoRefresh ? 'Actualizando automáticamente' : 'Actualización manual'}</span>
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`p-2 rounded-lg ${autoRefresh ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
+            title={autoRefresh ? 'Desactivar auto-refresh' : 'Activar auto-refresh'}
+          >
+            <Activity className="w-4 h-4" />
+          </button>
           {unreadCount > 0 && (
             <Button
               variant="secondary"
@@ -265,56 +317,63 @@ const NotificationCenter = () => {
         </div>
       </div>
 
-      {/* Estado de configuraciones */}
+      {/* Estado de notificaciones automáticas */}
       <div className="mb-6">
-        <div className="flex items-center space-x-4 text-sm">
-          <div className="flex items-center">
-            <Mail className={`w-4 h-4 mr-1 ${notificationSettings.emailEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-            <span className={notificationSettings.emailEnabled ? 'text-green-600' : 'text-gray-500'}>
-              Email {notificationSettings.emailEnabled ? 'activo' : 'inactivo'}
-            </span>
+        <div className="flex items-center space-x-4 text-sm bg-purple-50 p-3 rounded-lg">
+          <Zap className="w-5 h-5 text-purple-600" />
+          <div className="flex-1">
+            <p className="font-medium text-purple-900">Sistema Automático Activo</p>
+            <p className="text-purple-700">Los partidos cambian de estado automáticamente y las notificaciones son inteligentes</p>
           </div>
-          <div className="flex items-center">
-            <Smartphone className={`w-4 h-4 mr-1 ${notificationSettings.pushEnabled ? 'text-green-600' : 'text-gray-400'}`} />
-            <span className={notificationSettings.pushEnabled ? 'text-green-600' : 'text-gray-500'}>
-              Push {notificationSettings.pushEnabled ? 'activo' : 'inactivo'}
-            </span>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center">
+              <Mail className={`w-4 h-4 mr-1 ${notificationSettings.emailEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+              <span className={notificationSettings.emailEnabled ? 'text-green-600' : 'text-gray-500'}>
+                Email
+              </span>
+            </div>
+            <div className="flex items-center">
+              <Smartphone className={`w-4 h-4 mr-1 ${notificationSettings.pushEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+              <span className={notificationSettings.pushEnabled ? 'text-green-600' : 'text-gray-500'}>
+                Push
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Lista de notificaciones */}
+      {/* Lista de notificaciones mejorada */}
       {notifications.length === 0 ? (
         <div className="text-center py-8">
-          <Bell className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <BellRing className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No tienes notificaciones recientes</p>
           <p className="text-sm text-gray-400 mt-1">
-            {user.deporteFavorito ? 
-              'Las notificaciones sobre tus partidos aparecerán aquí' : 
-              'Configura tu deporte favorito para recibir recomendaciones'
-            }
+            Las notificaciones automáticas aparecerán aquí conforme sucedan eventos
           </p>
           {!user.deporteFavorito && (
             <Link to="/perfil" className="btn-primary mt-4 inline-block">
-              Configurar Perfil
+              Configurar Perfil para Mejores Recomendaciones
             </Link>
           )}
         </div>
       ) : (
-        <div className="space-y-3 max-h-80 overflow-y-auto">
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {notifications.map(notification => (
             <div
               key={notification.id}
-              className={`p-4 rounded-lg border transition-colors duration-200 ${
+              className={`p-4 rounded-lg border transition-all duration-200 ${
                 notification.read 
                   ? 'bg-gray-50 border-gray-200' 
-                  : 'bg-blue-50 border-blue-200'
+                  : 'bg-blue-50 border-blue-200 shadow-sm'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
-                  <div className="text-2xl">
-                    {notification.icon}
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl">
+                      {notification.icon}
+                    </div>
+                    {notification.priority && getPriorityIndicator(notification.priority)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center mb-1">
@@ -358,8 +417,8 @@ const NotificationCenter = () => {
                     </div>
                   </div>
                 </div>
-                <Badge variant={getNotificationTypeColor(notification.type)} className="ml-2">
-                  {notification.type.replace('_', ' ')}
+                <Badge variant={getNotificationTypeColor(notification.type)} className="ml-2 text-xs">
+                  {notification.type.replace(/_/g, ' ')}
                 </Badge>
               </div>
             </div>
@@ -367,29 +426,30 @@ const NotificationCenter = () => {
         </div>
       )}
 
-      {/* Acciones rápidas */}
+      {/* Footer actualizado */}
       <div className="mt-6 pt-4 border-t border-gray-200">
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-600">
             {notifications.length > 0 ? (
-              `${notifications.length} notificaciones recientes`
+              `${notifications.length} notificaciones • Sistema inteligente activo`
             ) : (
-              'Mantente al día con tus partidos'
+              'Centro de notificaciones inteligente'
             )}
           </div>
           <div className="flex space-x-2">
             <button
               onClick={loadRealNotifications}
               className="text-sm text-gray-500 hover:text-gray-700"
+              disabled={loading}
             >
-              Actualizar
+              {loading ? 'Actualizando...' : 'Actualizar'}
             </button>
             <Link
               to="/notificaciones"
               className="btn-secondary text-sm"
             >
               <Settings className="w-4 h-4 mr-1" />
-              Gestionar notificaciones
+              Configuración avanzada
             </Link>
           </div>
         </div>

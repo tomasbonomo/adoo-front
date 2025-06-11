@@ -13,13 +13,19 @@ import {
   Users, 
   Star,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Target,
+  Zap,
+  TrendingUp,
+  Brain,
+  Globe,
+  History,
+  BarChart3
 } from 'lucide-react';
 import { Card, Loading, ErrorMessage, EmptyState, Badge, Button, Input, Select } from '../common';
 import apiService from '../../services/api';
 
 const SearchPartidos = () => {
-  // ✅ Contextos
   const { notifyPartidoUpdated } = useContext(PartidoContext);
   const { notifyPlayerJoined, notifyPartidoComplete, notifySuccess, notifyError } = useGlobalNotifications();
   const { user } = useAuth();
@@ -30,6 +36,7 @@ const SearchPartidos = () => {
   const [deportes, setDeportes] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(0);
@@ -37,7 +44,7 @@ const SearchPartidos = () => {
   const [totalElements, setTotalElements] = useState(0);
   const pageSize = 10;
 
-  // Filtros
+  // Filtros mejorados
   const [filters, setFilters] = useState({
     tipoDeporte: '',
     zona: '',
@@ -46,8 +53,13 @@ const SearchPartidos = () => {
     nivelMinimo: '',
     nivelMaximo: '',
     soloDisponibles: true,
-    ordenarPor: 'fecha',
-    orden: 'asc'
+    ordenarPor: 'compatibilidad', // ✅ Cambio: por defecto ordenar por compatibilidad
+    orden: 'desc',
+    // ✅ NUEVOS FILTROS para estrategias
+    estrategiaEmparejamiento: '',
+    compatibilidadMinima: 0.5,
+    soloAltoMatch: false,
+    incluirCercanos: true
   });
 
   useEffect(() => {
@@ -58,41 +70,50 @@ const SearchPartidos = () => {
     searchPartidos();
   }, [currentPage, filters]);
 
-const loadInitialData = () => {
-  // Cargar deportes y zonas para los filtros
-  Promise.all([
-    apiService.getDeportesTypes(),
-    apiService.getZonas()
-  ])
-  .then(([deportesData, zonasData]) => {
-    setDeportes(deportesData); // Ahora es array de {value, label}
-    setZonas(zonasData);
-  })
-  .catch(err => {
-    console.error('Error cargando datos iniciales:', err);
-    setError(apiService.handleApiError(err));
-  });
-};
+  const loadInitialData = () => {
+    Promise.all([
+      apiService.getDeportesTypes(),
+      apiService.getZonas()
+    ])
+    .then(([deportesData, zonasData]) => {
+      setDeportes(deportesData);
+      setZonas(zonasData);
+    })
+    .catch(err => {
+      console.error('Error cargando datos iniciales:', err);
+      setError(apiService.handleApiError(err));
+    });
+  };
 
   const searchPartidos = () => {
     setLoading(true);
     setError(null);
 
-    // Preparar criterios de búsqueda
+    // ✅ CRITERIOS MEJORADOS con nuevas capacidades
     const criterios = {
       ...filters,
-      // Convertir strings vacíos a null
       tipoDeporte: filters.tipoDeporte || null,
       zona: filters.zona || null,
       fechaDesde: filters.fechaDesde ? new Date(filters.fechaDesde).toISOString() : null,
       fechaHasta: filters.fechaHasta ? new Date(filters.fechaHasta).toISOString() : null,
       nivelMinimo: filters.nivelMinimo || null,
-      nivelMaximo: filters.nivelMaximo || null
+      nivelMaximo: filters.nivelMaximo || null,
+      estrategiaEmparejamiento: filters.estrategiaEmparejamiento || null,
+      // ✅ NUEVO: Filtro por compatibilidad mínima
+      compatibilidadMinima: filters.soloAltoMatch ? 0.8 : (filters.compatibilidadMinima || 0),
     };
+
+    console.log('🔍 Buscando con criterios mejorados:', criterios);
 
     apiService.searchPartidos(criterios, currentPage, pageSize)
       .then(response => {
-        setPartidos(response.content || []);
+        const partidosConCompatibilidad = (response.content || []).map(partido => ({
+          ...partido,
+          // ✅ MEJORADO: Asegurar que siempre haya compatibilidad calculada
+          compatibilidad: partido.compatibilidad || calculateFallbackCompatibility(partido, user)
+        }));
+        
+        setPartidos(partidosConCompatibilidad);
         setTotalPages(response.totalPages || 0);
         setTotalElements(response.totalElements || 0);
       })
@@ -106,12 +127,38 @@ const loadInitialData = () => {
       });
   };
 
+  // ✅ NUEVO: Calcular compatibilidad de fallback en el frontend
+  const calculateFallbackCompatibility = (partido, usuario) => {
+    if (!usuario) return 0.5;
+    
+    let compatibility = 0.5; // Base
+    
+    // Bonus por deporte favorito
+    if (usuario.deporteFavorito === partido.deporte.tipo) {
+      compatibility += 0.3;
+    }
+    
+    // Bonus por nivel similar
+    if (usuario.nivelJuego === partido.organizador.nivelJuego) {
+      compatibility += 0.2;
+    }
+    
+    // Bonus por horario conveniente
+    const hora = new Date(partido.horario).getHours();
+    const esFds = new Date(partido.horario).getDay() >= 5;
+    if ((esFds && hora >= 10 && hora <= 22) || (!esFds && hora >= 17 && hora <= 21)) {
+      compatibility += 0.1;
+    }
+    
+    return Math.min(1.0, compatibility);
+  };
+
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({
       ...prev,
       [field]: value
     }));
-    setCurrentPage(0); // Reset a primera página cuando cambian filtros
+    setCurrentPage(0);
   };
 
   const clearFilters = () => {
@@ -123,39 +170,42 @@ const loadInitialData = () => {
       nivelMinimo: '',
       nivelMaximo: '',
       soloDisponibles: true,
-      ordenarPor: 'fecha',
-      orden: 'asc'
+      ordenarPor: 'compatibilidad',
+      orden: 'desc',
+      estrategiaEmparejamiento: '',
+      compatibilidadMinima: 0.5,
+      soloAltoMatch: false,
+      incluirCercanos: true
     });
     setCurrentPage(0);
   };
 
-  // ✅ MEJORADO: Función joinPartido con notificaciones globales
+  // ✅ MEJORADO: joinPartido con mejor feedback
   const joinPartido = async (partidoId) => {
     try {
-      // Obtener datos del partido antes de unirse
       const partidoAntes = partidos.find(p => p.id === partidoId);
       
-      // Hacer la solicitud para unirse
+      // Mostrar loading en el botón específico
+      setPartidos(prev => prev.map(p => 
+        p.id === partidoId ? { ...p, joining: true } : p
+      ));
+      
       const response = await apiService.joinPartido(partidoId);
       
-      // ✅ NOTIFICACIÓN GLOBAL: Jugador se unió
+      // ✅ Notificación inmediata
       notifyPlayerJoined(user.nombreUsuario, {
         id: partidoId,
         deporte: partidoAntes.deporte.nombre
       });
 
-      // Actualizar la lista local inmediatamente
+      // Actualizar inmediatamente el estado local
       searchPartidos();
-      
-      // Notificar a otros componentes
       notifyPartidoUpdated(partidoId);
 
-      // Obtener el partido actualizado para verificar si está completo
+      // Verificar si se completó
       setTimeout(async () => {
         try {
           const partidoDespues = await apiService.getPartido(partidoId);
-          
-          // ✅ NOTIFICACIÓN GLOBAL: Partido completo
           if (partidoDespues.cantidadJugadoresActual >= partidoDespues.cantidadJugadoresRequeridos &&
               partidoAntes.cantidadJugadoresActual < partidoAntes.cantidadJugadoresRequeridos) {
             notifyPartidoComplete({
@@ -164,14 +214,18 @@ const loadInitialData = () => {
             });
           }
         } catch (err) {
-          console.error('Error verificando estado del partido:', err);
+          console.error('Error verificando estado:', err);
         }
-      }, 1000); // Esperar 1 segundo para que se actualice en el backend
+      }, 1000);
 
     } catch (err) {
-      console.error('Error uniéndose al partido:', err);
-      // ✅ NOTIFICACIÓN GLOBAL: Error
+      console.error('Error uniéndose:', err);
       notifyError(apiService.handleApiError(err), '❌ Error al unirse');
+    } finally {
+      // Quitar loading
+      setPartidos(prev => prev.map(p => 
+        p.id === partidoId ? { ...p, joining: false } : p
+      ));
     }
   };
 
@@ -187,6 +241,58 @@ const loadInitialData = () => {
     return <Badge variant={props.variant}>{props.text}</Badge>;
   };
 
+  // ✅ NUEVO: Badge de estrategia con icono
+  const getEstrategiaBadge = (estrategia) => {
+    const estrategiaInfo = {
+      'POR_NIVEL': { icon: Target, color: 'blue', name: 'Por Nivel' },
+      'POR_CERCANIA': { icon: Globe, color: 'green', name: 'Por Cercanía' },
+      'POR_HISTORIAL': { icon: History, color: 'purple', name: 'Por Historial' }
+    };
+
+    const info = estrategiaInfo[estrategia] || { icon: BarChart3, color: 'gray', name: estrategia };
+    const Icon = info.icon;
+
+    return (
+      <Badge variant={info.color} className="text-xs">
+        <Icon className="w-3 h-3 mr-1" />
+        {info.name}
+      </Badge>
+    );
+  };
+
+  // ✅ NUEVO: Compatibilidad visual mejorada
+  const getCompatibilityDisplay = (compatibilidad) => {
+    if (!compatibilidad || compatibilidad === 0) return null;
+    
+    const percentage = Math.round(compatibilidad * 100);
+    let variant = 'gray';
+    let label = '';
+    
+    if (percentage >= 90) {
+      variant = 'purple';
+      label = 'Excelente';
+    } else if (percentage >= 80) {
+      variant = 'green';
+      label = 'Muy bueno';
+    } else if (percentage >= 70) {
+      variant = 'blue';
+      label = 'Bueno';
+    } else if (percentage >= 60) {
+      variant = 'yellow';
+      label = 'Regular';
+    }
+
+    return (
+      <div className="flex items-center space-x-1">
+        <Badge variant={variant}>
+          <Star className="w-3 h-3 mr-1" />
+          {percentage}%
+        </Badge>
+        {label && <span className="text-xs text-gray-600">{label}</span>}
+      </div>
+    );
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       day: 'numeric',
@@ -196,13 +302,14 @@ const loadInitialData = () => {
     });
   };
 
- const deporteOptions = [
-  { value: '', label: 'Todos los deportes' },
-  ...deportes.map(deporte => ({ 
-    value: deporte.value,  // FUTBOL, BASQUET, etc.
-    label: deporte.label   // Fútbol, Básquet, etc.
-  }))
-];
+  // ✅ OPCIONES MEJORADAS
+  const deporteOptions = [
+    { value: '', label: 'Todos los deportes' },
+    ...deportes.map(deporte => ({ 
+      value: deporte.value,
+      label: deporte.label
+    }))
+  ];
 
   const zonaOptions = [
     { value: '', label: 'Todas las zonas' },
@@ -217,89 +324,184 @@ const loadInitialData = () => {
   ];
 
   const ordenOptions = [
-    { value: 'fecha', label: 'Fecha' },
-    { value: 'compatibilidad', label: 'Compatibilidad' },
-    { value: 'distancia', label: 'Distancia' }
+    { value: 'compatibilidad', label: '🎯 Compatibilidad' },
+    { value: 'fecha', label: '📅 Fecha' },
+    { value: 'distancia', label: '📍 Distancia' },
+    { value: 'popularidad', label: '🔥 Popularidad' }
+  ];
+
+  // ✅ NUEVAS OPCIONES para estrategias
+  const estrategiaOptions = [
+    { value: '', label: 'Cualquier estrategia' },
+    { value: 'POR_NIVEL', label: '🎯 Por Nivel de Habilidad' },
+    { value: 'POR_CERCANIA', label: '🗺️ Por Cercanía Geográfica' },
+    { value: 'POR_HISTORIAL', label: '📊 Por Historial de Partidos' }
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
+      {/* Header mejorado */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Buscar Partidos
+          Búsqueda Inteligente de Partidos
         </h1>
         <p className="text-gray-600">
-          Encuentra el partido perfecto para ti
+          Encuentra partidos perfectos con nuestro sistema de emparejamiento avanzado
         </p>
+        <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
+          <div className="flex items-center">
+            <Brain className="w-4 h-4 mr-1" />
+            <span>Búsqueda inteligente activada</span>
+          </div>
+          <div className="flex items-center">
+            <Zap className="w-4 h-4 mr-1" />
+            <span>Compatibilidad automática</span>
+          </div>
+          <div className="flex items-center">
+            <TrendingUp className="w-4 h-4 mr-1" />
+            <span>Resultados personalizados</span>
+          </div>
+        </div>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros mejorados */}
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Filtros de búsqueda</h3>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
-          </Button>
+          <h3 className="text-lg font-semibold text-gray-900">Filtros Inteligentes</h3>
+          <div className="flex space-x-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              {showAdvancedSearch ? 'Filtros básicos' : 'Filtros avanzados'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              {showFilters ? 'Ocultar' : 'Mostrar'} filtros
+            </Button>
+          </div>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Select
-              label="Deporte"
-              options={deporteOptions}
-              value={filters.tipoDeporte}
-              onChange={(e) => handleFilterChange('tipoDeporte', e.target.value)}
-            />
+          <div className="space-y-4">
+            {/* Filtros básicos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Select
+                label="Deporte"
+                options={deporteOptions}
+                value={filters.tipoDeporte}
+                onChange={(e) => handleFilterChange('tipoDeporte', e.target.value)}
+              />
 
-            <Select
-              label="Zona"
-              options={zonaOptions}
-              value={filters.zona}
-              onChange={(e) => handleFilterChange('zona', e.target.value)}
-            />
+              <Select
+                label="Zona"
+                options={zonaOptions}
+                value={filters.zona}
+                onChange={(e) => handleFilterChange('zona', e.target.value)}
+              />
 
-            <Input
-              label="Fecha desde"
-              type="datetime-local"
-              value={filters.fechaDesde}
-              onChange={(e) => handleFilterChange('fechaDesde', e.target.value)}
-            />
+              <Select
+                label="Estrategia de Emparejamiento"
+                options={estrategiaOptions}
+                value={filters.estrategiaEmparejamiento}
+                onChange={(e) => handleFilterChange('estrategiaEmparejamiento', e.target.value)}
+              />
 
-            <Input
-              label="Fecha hasta"
-              type="datetime-local"
-              value={filters.fechaHasta}
-              onChange={(e) => handleFilterChange('fechaHasta', e.target.value)}
-            />
+              <Select
+                label="Ordenar por"
+                options={ordenOptions}
+                value={filters.ordenarPor}
+                onChange={(e) => handleFilterChange('ordenarPor', e.target.value)}
+              />
+            </div>
 
-            <Select
-              label="Nivel mínimo"
-              options={nivelOptions}
-              value={filters.nivelMinimo}
-              onChange={(e) => handleFilterChange('nivelMinimo', e.target.value)}
-            />
+            {/* ✅ FILTROS AVANZADOS */}
+            {showAdvancedSearch && (
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-3">Búsqueda Avanzada</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Input
+                    label="Fecha desde"
+                    type="datetime-local"
+                    value={filters.fechaDesde}
+                    onChange={(e) => handleFilterChange('fechaDesde', e.target.value)}
+                  />
 
-            <Select
-              label="Nivel máximo"
-              options={nivelOptions}
-              value={filters.nivelMaximo}
-              onChange={(e) => handleFilterChange('nivelMaximo', e.target.value)}
-            />
+                  <Input
+                    label="Fecha hasta"
+                    type="datetime-local"
+                    value={filters.fechaHasta}
+                    onChange={(e) => handleFilterChange('fechaHasta', e.target.value)}
+                  />
 
-            <Select
-              label="Ordenar por"
-              options={ordenOptions}
-              value={filters.ordenarPor}
-              onChange={(e) => handleFilterChange('ordenarPor', e.target.value)}
-            />
+                  <Select
+                    label="Nivel mínimo"
+                    options={nivelOptions}
+                    value={filters.nivelMinimo}
+                    onChange={(e) => handleFilterChange('nivelMinimo', e.target.value)}
+                  />
 
-            <div className="flex items-end">
+                  <Select
+                    label="Nivel máximo"
+                    options={nivelOptions}
+                    value={filters.nivelMaximo}
+                    onChange={(e) => handleFilterChange('nivelMaximo', e.target.value)}
+                  />
+                </div>
+
+                {/* Controles de compatibilidad */}
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <h5 className="font-medium text-blue-900 mb-2">Control de Compatibilidad</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-1">
+                        Compatibilidad mínima: {Math.round(filters.compatibilidadMinima * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={filters.compatibilidadMinima}
+                        onChange={(e) => handleFilterChange('compatibilidadMinima', parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={filters.soloAltoMatch}
+                          onChange={(e) => handleFilterChange('soloAltoMatch', e.target.checked)}
+                          className="mr-2"
+                        />
+                        Solo matches de 80%+
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={filters.incluirCercanos}
+                          onChange={(e) => handleFilterChange('incluirCercanos', e.target.checked)}
+                          className="mr-2"
+                        />
+                        Incluir partidos cercanos
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Controles de filtro */}
+            <div className="flex items-center space-x-4">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -307,7 +509,7 @@ const loadInitialData = () => {
                   onChange={(e) => handleFilterChange('soloDisponibles', e.target.checked)}
                   className="mr-2"
                 />
-                Solo disponibles
+                Solo partidos disponibles
               </label>
             </div>
           </div>
@@ -316,6 +518,7 @@ const loadInitialData = () => {
         <div className="flex justify-between items-center mt-4">
           <div className="text-sm text-gray-600">
             {totalElements} partidos encontrados
+            {filters.soloAltoMatch && <span className="text-blue-600 ml-2">• Solo alta compatibilidad</span>}
           </div>
           <Button
             variant="secondary"
@@ -329,55 +532,69 @@ const loadInitialData = () => {
 
       {error && <ErrorMessage error={error} onClose={() => setError(null)} />}
 
-      {/* Resultados */}
+      {/* Resultados mejorados */}
       {loading ? (
-        <Loading size="lg" text="Buscando partidos..." />
+        <div className="flex items-center justify-center py-12">
+          <Loading size="lg" text="Buscando partidos con IA..." />
+        </div>
       ) : partidos.length === 0 ? (
         <EmptyState
           icon={Search}
           title="No se encontraron partidos"
-          description="Prueba ajustando los filtros de búsqueda"
+          description="Prueba ajustando los filtros o ampliando los criterios de búsqueda"
           action={
-            <Button onClick={clearFilters}>
-              Limpiar filtros
-            </Button>
+            <div className="space-x-2">
+              <Button onClick={clearFilters}>
+                Limpiar filtros
+              </Button>
+              <Link to="/partidos/crear" className="btn-primary">
+                Crear nuevo partido
+              </Link>
+            </div>
           }
         />
       ) : (
         <>
-          {/* Lista de partidos */}
+          {/* Lista de partidos mejorada */}
           <div className="space-y-4 mb-8">
             {partidos.map(partido => (
-              <Card key={partido.id} className="p-6">
+              <Card key={partido.id} className="p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center mb-3">
                       <span className="text-2xl mr-3">
                         {getDeporteIcon(partido.deporte.tipo)}
                       </span>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {partido.deporte.nombre}
-                        </h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1 flex-wrap">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {partido.deporte.nombre}
+                          </h3>
+                          {getEstadoBadge(partido.estado)}
+                          {getEstrategiaBadge(partido.estrategiaEmparejamiento)}
+                          {getCompatibilityDisplay(partido.compatibilidad)}
+                        </div>
                         <p className="text-sm text-gray-600">
                           Organizado por {partido.organizador.nombreUsuario}
+                          {partido.organizador.nivelJuego && (
+                            <span className="ml-2 text-xs">
+                              • Nivel: {partido.organizador.nivelJuego}
+                            </span>
+                          )}
                         </p>
-                      </div>
-                      <div className="ml-auto flex items-center space-x-2">
-                        {getEstadoBadge(partido.estado)}
-                        {partido.compatibilidad && (
-                          <Badge variant="green">
-                            <Star className="w-3 h-3 mr-1" />
-                            {Math.round(partido.compatibilidad * 100)}% match
-                          </Badge>
-                        )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    {/* Información del partido */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
                         <MapPin className="h-4 w-4 mr-2" />
-                        <span>{partido.ubicacion.direccion}</span>
+                        <span>
+                          {partido.ubicacion.direccion}
+                          {partido.ubicacion.zona && (
+                            <span className="text-blue-600 ml-1">• {partido.ubicacion.zona}</span>
+                          )}
+                        </span>
                       </div>
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
@@ -388,15 +605,36 @@ const loadInitialData = () => {
                         <span>
                           {partido.cantidadJugadoresActual}/{partido.cantidadJugadoresRequeridos} jugadores
                         </span>
+                        <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ 
+                              width: `${(partido.cantidadJugadoresActual / partido.cantidadJugadoresRequeridos) * 100}%` 
+                            }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-gray-600">
-                        Estrategia: {partido.estrategiaEmparejamiento}
-                        {partido.ubicacion.zona && (
-                          <span className="ml-2">• Zona: {partido.ubicacion.zona}</span>
-                        )}
+                    {/* ✅ NUEVA: Información de estrategia y compatibilidad */}
+                    {partido.compatibilidad > 0.7 && (
+                      <div className="mb-4 p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center text-green-700">
+                          <Target className="h-4 w-4 mr-2" />
+                          <span className="text-sm font-medium">
+                            Alta compatibilidad ({Math.round(partido.compatibilidad * 100)}%)
+                          </span>
+                          <span className="ml-2 text-xs">
+                            - Estrategia: {partido.estrategiaEmparejamiento}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Acciones */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gray-500">
+                        ID: #{partido.id} • Duración: {partido.duracion} min
                       </div>
                       <div className="flex space-x-2">
                         <Link
@@ -410,9 +648,18 @@ const loadInitialData = () => {
                             <span className="text-gray-300">•</span>
                             <button
                               onClick={() => joinPartido(partido.id)}
-                              className="text-green-600 hover:text-green-700 text-sm font-medium hover:bg-green-50 px-2 py-1 rounded transition-colors"
+                              disabled={partido.joining}
+                              className={`text-sm font-medium px-3 py-1 rounded transition-colors ${
+                                partido.joining 
+                                  ? 'text-gray-400 cursor-not-allowed'
+                                  : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                              }`}
                             >
-                              🚀 Unirse al partido
+                              {partido.joining ? (
+                                '⏳ Uniéndose...'
+                              ) : (
+                                <>🚀 Unirse al partido</>
+                              )}
                             </button>
                           </>
                         )}
@@ -428,7 +675,7 @@ const loadInitialData = () => {
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Página {currentPage + 1} de {totalPages}
+                Página {currentPage + 1} de {totalPages} • {totalElements} resultados
               </div>
               <div className="flex space-x-2">
                 <Button

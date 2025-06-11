@@ -1,4 +1,4 @@
-import  { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getDeporteIcon } from  '../../config/config';
 import { 
@@ -9,11 +9,18 @@ import {
   Timer,
   Settings,
   Info,
-  AlertTriangle
+  AlertTriangle,
+  Target,
+  Globe,
+  History,
+  BarChart3,
+  Zap,
+  Brain,
+  Sparkles,
+  HelpCircle
 } from 'lucide-react';
 import { Card, Loading, ErrorMessage, SuccessMessage, Button, Input, Select } from '../common';
-// import ZonaSelector from '../ubicaciones/ZonaSelector'; // TODO: Crear este componente más tarde
-
+import apiService from '../../services/api';
 
 // Componente temporal de ZonaSelector simplificado
 const ZonaSelectorSimple = ({ value, onChange, label, showStats = false }) => {
@@ -21,7 +28,6 @@ const ZonaSelectorSimple = ({ value, onChange, label, showStats = false }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Cargar zonas disponibles
     fetch('http://localhost:8080/api/v1/ubicaciones/zonas')
       .then(response => response.json())
       .then(zonasData => {
@@ -30,7 +36,6 @@ const ZonaSelectorSimple = ({ value, onChange, label, showStats = false }) => {
       })
       .catch(err => {
         console.error('Error cargando zonas:', err);
-        // Zonas por defecto
         setZonas(['Centro', 'Palermo', 'Belgrano', 'Zona Norte', 'Zona Sur', 'Zona Oeste']);
         setLoading(false);
       });
@@ -57,13 +62,12 @@ const ZonaSelectorSimple = ({ value, onChange, label, showStats = false }) => {
         <div className="mt-2 p-2 bg-blue-50 rounded text-blue-700 text-sm">
           ✅ Zona seleccionada: <strong>{value}</strong>
           <br />
-          Esto ayudará a otros jugadores de la zona a encontrar tu partido.
+          Esto ayudará a las estrategias de emparejamiento a encontrar jugadores compatibles.
         </div>
       )}
     </div>
   );
 };
-import apiService from '../../services/api';
 
 const CreatePartido = () => {
   const navigate = useNavigate();
@@ -72,6 +76,7 @@ const CreatePartido = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [deportes, setDeportes] = useState([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [formData, setFormData] = useState({
     tipoDeporte: '',
@@ -84,42 +89,97 @@ const CreatePartido = () => {
       zona: ''
     },
     horario: '',
-    estrategiaEmparejamiento: 'POR_NIVEL'
+    estrategiaEmparejamiento: 'POR_NIVEL', // ✅ Por defecto la estrategia inteligente
+    // ✅ NUEVOS campos para configuración avanzada
+    configuracionAvanzada: {
+      nivelMinimo: '',
+      nivelMaximo: '',
+      radioMaximo: '',
+      permitirMixto: true,
+      prioridadCompatibilidad: 'alta'
+    }
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [estrategiaPreview, setEstrategiaPreview] = useState(null);
 
   useEffect(() => {
     loadInitialData();
   }, []);
 
+  // ✅ NUEVO: Actualizar preview cuando cambia la estrategia
+  useEffect(() => {
+    updateEstrategiaPreview();
+  }, [formData.estrategiaEmparejamiento, formData.tipoDeporte, formData.ubicacion.zona]);
+
   const loadInitialData = () => {
-  setLoading(true);
+    setLoading(true);
 
-  apiService.getDeportesTypes()
-    .then(deportesData => {
-      setDeportes(deportesData);
-    })
-    .catch(err => {
-      console.error('Error cargando datos iniciales:', err);
-      setError(apiService.handleApiError(err));
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-};
+    apiService.getDeportesTypes()
+      .then(deportesData => {
+        setDeportes(deportesData);
+      })
+      .catch(err => {
+        console.error('Error cargando datos iniciales:', err);
+        setError(apiService.handleApiError(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
+  // ✅ NUEVO: Preview de cómo funcionará la estrategia
+  const updateEstrategiaPreview = () => {
+    const { estrategiaEmparejamiento, tipoDeporte, ubicacion } = formData;
+    
+    const previews = {
+      'POR_NIVEL': {
+        icon: Target,
+        title: 'Emparejamiento por Nivel',
+        description: 'Los jugadores se emparejarán según su habilidad',
+        benefits: [
+          'Partidos más equilibrados',
+          'Mejor experiencia de juego',
+          'Compatibilidad por habilidad'
+        ],
+        algorithm: 'Mismo nivel = 100% • 1 nivel diferencia = 70% • 2+ niveles = 30%'
+      },
+      'POR_CERCANIA': {
+        icon: Globe,
+        title: 'Emparejamiento por Cercanía',
+        description: 'Prioriza jugadores de la misma zona geográfica',
+        benefits: [
+          'Menor tiempo de viaje',
+          'Fácil acceso al partido',
+          'Comunidad local'
+        ],
+        algorithm: ubicacion.zona 
+          ? `Zona ${ubicacion.zona}: 100% • Zonas adyacentes: 80% • <5km: 90%`
+          : 'Misma zona: 100% • Zonas adyacentes: 80% • <5km: 90%'
+      },
+      'POR_HISTORIAL': {
+        icon: History,
+        title: 'Emparejamiento por Historial',
+        description: 'Considera la experiencia previa de los jugadores',
+        benefits: [
+          'Jugadores conocidos',
+          'Basado en experiencia',
+          'Preferencias aprendidas'
+        ],
+        algorithm: 'Sin historial: 60% • Historial positivo: 95% • Jugadores conocidos: +20%'
+      }
+    };
 
-  // MEJORADO: Validación más robusta
+    setEstrategiaPreview(previews[estrategiaEmparejamiento] || null);
+  };
+
   const validateForm = () => {
     const errors = {};
     
-    // Validar tipo de deporte
     if (!formData.tipoDeporte) {
       errors.tipoDeporte = 'Selecciona un deporte';
     }
     
-    // Validar cantidad de jugadores
     if (!formData.cantidadJugadoresRequeridos) {
       errors.cantidadJugadoresRequeridos = 'Especifica la cantidad de jugadores';
     } else {
@@ -131,7 +191,6 @@ const CreatePartido = () => {
       }
     }
     
-    // Validar duración
     if (!formData.duracion) {
       errors.duracion = 'Especifica la duración';
     } else {
@@ -143,14 +202,12 @@ const CreatePartido = () => {
       }
     }
     
-    // Validar dirección
     if (!formData.ubicacion.direccion.trim()) {
       errors.direccion = 'La dirección es obligatoria';
     } else if (formData.ubicacion.direccion.trim().length < 5) {
       errors.direccion = 'La dirección debe tener al menos 5 caracteres';
     }
     
-    // Validar horario
     if (!formData.horario) {
       errors.horario = 'Selecciona fecha y hora';
     } else {
@@ -162,7 +219,6 @@ const CreatePartido = () => {
       } else if (selectedDate <= now) {
         errors.horario = 'La fecha debe ser futura';
       } else {
-        // Verificar que no sea demasiado lejana (ej: más de 1 año)
         const oneYearFromNow = new Date();
         oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
         if (selectedDate > oneYearFromNow) {
@@ -171,7 +227,6 @@ const CreatePartido = () => {
       }
     }
 
-    // Validar coordenadas si se proporcionan
     if (formData.ubicacion.latitud && formData.ubicacion.latitud !== '') {
       const lat = parseFloat(formData.ubicacion.latitud);
       if (isNaN(lat) || lat < -90 || lat > 90) {
@@ -207,7 +262,6 @@ const CreatePartido = () => {
       }));
     }
     
-    // Limpiar error del campo
     if (formErrors[field] || formErrors[field.split('.')[1]]) {
       const errorField = field.includes('.') ? field.split('.')[1] : field;
       setFormErrors(prev => ({
@@ -217,7 +271,17 @@ const CreatePartido = () => {
     }
   };
 
-  // MEJORADO: Mejor manejo de errores y logging
+  // ✅ NUEVO: Manejar configuración avanzada
+  const handleAdvancedChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      configuracionAvanzada: {
+        ...prev.configuracionAvanzada,
+        [field]: value
+      }
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -229,13 +293,21 @@ const CreatePartido = () => {
     setError(null);
     setSuccess(null);
 
-    // Log de los datos que se van a enviar para debugging
-    console.log('📤 Datos del formulario a enviar:', formData);
+    // ✅ PREPARAR datos incluyendo configuración avanzada
+    const submitData = {
+      ...formData,
+      // Incluir configuración específica de estrategia si es necesario
+      ...(showAdvanced && formData.configuracionAvanzada.nivelMinimo && {
+        configuracionEstrategia: formData.configuracionAvanzada
+      })
+    };
 
-    apiService.createPartido(formData)
+    console.log('📤 Creando partido con datos avanzados:', submitData);
+
+    apiService.createPartido(submitData)
       .then(response => {
-        console.log('✅ Partido creado exitosamente:', response);
-        setSuccess('¡Partido creado exitosamente!');
+        console.log('✅ Partido creado con sistema automático:', response);
+        setSuccess('¡Partido creado exitosamente! El sistema automático gestionará las transiciones.');
         setTimeout(() => {
           navigate(`/partidos/${response.id}`);
         }, 2000);
@@ -243,8 +315,6 @@ const CreatePartido = () => {
       .catch(err => {
         console.error('❌ Error creando partido:', err);
         setError(apiService.handleApiError(err));
-        
-        // Scroll hacia arriba para mostrar el error
         window.scrollTo({ top: 0, behavior: 'smooth' });
       })
       .finally(() => {
@@ -270,13 +340,25 @@ const CreatePartido = () => {
     }))
   ];
 
+  // ✅ ESTRATEGIAS MEJORADAS con descripciones
   const estrategiaOptions = [
-    { value: 'POR_NIVEL', label: 'Por nivel de habilidad' },
-    { value: 'POR_CERCANIA', label: 'Por cercanía geográfica' },
-    { value: 'POR_HISTORIAL', label: 'Por historial de partidos' }
+    { 
+      value: 'POR_NIVEL', 
+      label: '🎯 Por Nivel de Habilidad',
+      description: 'Empareja jugadores con habilidades similares'
+    },
+    { 
+      value: 'POR_CERCANIA', 
+      label: '🗺️ Por Cercanía Geográfica',
+      description: 'Prioriza jugadores de la misma zona'
+    },
+    { 
+      value: 'POR_HISTORIAL', 
+      label: '📊 Por Historial de Partidos',
+      description: 'Basado en experiencia previa y jugadores conocidos'
+    }
   ];
 
-  // Generar fecha mínima (ahora + 1 hora)
   const getMinDateTime = () => {
     const now = new Date();
     now.setHours(now.getHours() + 1);
@@ -286,21 +368,35 @@ const CreatePartido = () => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Loading size="lg" text="Cargando formulario..." />
+        <Loading size="lg" text="Cargando formulario inteligente..." />
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
+      {/* Header mejorado */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Crear Nuevo Partido
+          Crear Nuevo Partido Inteligente
         </h1>
         <p className="text-gray-600">
-          Organiza un partido y encuentra jugadores para completar tu equipo
+          Organiza un partido con sistema automático de emparejamiento y notificaciones
         </p>
+        <div className="mt-3 flex items-center space-x-4 text-sm text-gray-500">
+          <div className="flex items-center">
+            <Zap className="w-4 h-4 mr-1" />
+            <span>Sistema automático</span>
+          </div>
+          <div className="flex items-center">
+            <Brain className="w-4 h-4 mr-1" />
+            <span>Emparejamiento inteligente</span>
+          </div>
+          <div className="flex items-center">
+            <Sparkles className="w-4 h-4 mr-1" />
+            <span>Notificaciones instantáneas</span>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -315,7 +411,7 @@ const CreatePartido = () => {
                   <li>• Verifica que todos los campos obligatorios estén completos</li>
                   <li>• Asegúrate de que las coordenadas GPS (si las usas) sean válidas</li>
                   <li>• La fecha debe ser futura y no demasiado lejana</li>
-                  <li>• Revisa la consola del navegador (F12) para más detalles técnicos</li>
+                  <li>• Las estrategias de emparejamiento requieren información específica</li>
                 </ul>
               </div>
             </div>
@@ -345,7 +441,6 @@ const CreatePartido = () => {
                   const tipoDeporte = e.target.value;
                   const deporteInfo = getDeporteInfo(tipoDeporte);
                   handleChange('tipoDeporte', tipoDeporte);
-                  // Sugerir cantidad de jugadores basada en el deporte
                   if (tipoDeporte && !formData.cantidadJugadoresRequeridos) {
                     handleChange('cantidadJugadoresRequeridos', deporteInfo.jugadores.toString());
                   }
@@ -389,18 +484,130 @@ const CreatePartido = () => {
                 placeholder="Ej: 90"
               />
             </div>
+          </div>
+        </Card>
 
-            <div>
-              <Select
-                label="Estrategia de Emparejamiento"
-                options={estrategiaOptions}
-                value={formData.estrategiaEmparejamiento}
-                onChange={(e) => handleChange('estrategiaEmparejamiento', e.target.value)}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Define cómo se seleccionarán los jugadores
-              </p>
+        {/* ✅ NUEVA SECCIÓN: Estrategia de Emparejamiento */}
+        <Card className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+          <div className="flex items-center mb-6">
+            <div className="p-2 bg-purple-100 rounded-lg mr-3">
+              <Brain className="h-6 w-6 text-purple-600" />
             </div>
+            <h3 className="text-lg font-semibold text-gray-900">Estrategia de Emparejamiento Inteligente</h3>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Algoritmo de Emparejamiento *
+              </label>
+              <div className="space-y-3">
+                {estrategiaOptions.map(option => (
+                  <label key={option.value} className="flex items-start p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-white transition-colors">
+                    <input
+                      type="radio"
+                      name="estrategia"
+                      value={option.value}
+                      checked={formData.estrategiaEmparejamiento === option.value}
+                      onChange={(e) => handleChange('estrategiaEmparejamiento', e.target.value)}
+                      className="mt-1 mr-3"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{option.label}</div>
+                      <div className="text-sm text-gray-600">{option.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview de la estrategia */}
+            {estrategiaPreview && (
+              <div className="p-4 bg-white rounded-lg border border-gray-200">
+                <div className="flex items-center mb-3">
+                  <estrategiaPreview.icon className="h-5 w-5 text-purple-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">{estrategiaPreview.title}</h4>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">{estrategiaPreview.description}</p>
+                
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-gray-700">Beneficios:</div>
+                  <ul className="text-xs text-gray-600 space-y-1">
+                    {estrategiaPreview.benefits.map((benefit, index) => (
+                      <li key={index} className="flex items-center">
+                        <div className="w-1 h-1 bg-purple-400 rounded-full mr-2"></div>
+                        {benefit}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="text-xs font-medium text-gray-700 mb-1">Algoritmo:</div>
+                  <div className="text-xs text-purple-600 font-mono bg-purple-50 p-2 rounded">
+                    {estrategiaPreview.algorithm}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ✅ Configuración avanzada */}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center text-sm text-purple-600 hover:text-purple-700"
+            >
+              <Settings className="w-4 h-4 mr-1" />
+              {showAdvanced ? 'Ocultar' : 'Mostrar'} configuración avanzada
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-purple-200">
+                <h5 className="font-medium text-gray-900 mb-3">Configuración Avanzada</h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {formData.estrategiaEmparejamiento === 'POR_NIVEL' && (
+                    <>
+                      <Select
+                        label="Nivel Mínimo Permitido"
+                        options={[
+                          { value: '', label: 'Sin restricción' },
+                          { value: 'PRINCIPIANTE', label: 'Principiante' },
+                          { value: 'INTERMEDIO', label: 'Intermedio' },
+                          { value: 'AVANZADO', label: 'Avanzado' }
+                        ]}
+                        value={formData.configuracionAvanzada.nivelMinimo}
+                        onChange={(e) => handleAdvancedChange('nivelMinimo', e.target.value)}
+                      />
+                      <Select
+                        label="Nivel Máximo Permitido"
+                        options={[
+                          { value: '', label: 'Sin restricción' },
+                          { value: 'PRINCIPIANTE', label: 'Principiante' },
+                          { value: 'INTERMEDIO', label: 'Intermedio' },
+                          { value: 'AVANZADO', label: 'Avanzado' }
+                        ]}
+                        value={formData.configuracionAvanzada.nivelMaximo}
+                        onChange={(e) => handleAdvancedChange('nivelMaximo', e.target.value)}
+                      />
+                    </>
+                  )}
+                  
+                  {formData.estrategiaEmparejamiento === 'POR_CERCANIA' && (
+                    <Input
+                      label="Radio Máximo (km)"
+                      type="number"
+                      min="1"
+                      max="50"
+                      value={formData.configuracionAvanzada.radioMaximo}
+                      onChange={(e) => handleAdvancedChange('radioMaximo', e.target.value)}
+                      placeholder="15"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -426,7 +633,7 @@ const CreatePartido = () => {
 
             <div>
               <ZonaSelectorSimple
-                label="Zona"
+                label="Zona (Importante para estrategia de cercanía)"
                 value={formData.ubicacion.zona}
                 onChange={(value) => handleChange('ubicacion.zona', value)}
                 showStats={true}
@@ -446,7 +653,7 @@ const CreatePartido = () => {
 
             <div>
               <Input
-                label="Latitud (opcional)"
+                label="Latitud (opcional, mejora la precisión geográfica)"
                 type="number"
                 step="any"
                 value={formData.ubicacion.latitud}
@@ -458,7 +665,7 @@ const CreatePartido = () => {
 
             <div>
               <Input
-                label="Longitud (opcional)"
+                label="Longitud (opcional, mejora la precisión geográfica)"
                 type="number"
                 step="any"
                 value={formData.ubicacion.longitud}
@@ -473,23 +680,27 @@ const CreatePartido = () => {
             <div className="flex items-start">
               <Info className="h-5 w-5 text-amber-600 mr-2 mt-0.5" />
               <div className="text-sm text-amber-700">
-                <p className="font-medium mb-1">Consejos para la ubicación:</p>
+                <p className="font-medium mb-1">Tips para optimizar el emparejamiento:</p>
                 <ul className="text-xs space-y-1">
-                  <li>• Sé específico con la dirección (nombre de la cancha, club, etc.)</li>
-                  <li>• Las coordenadas GPS ayudan a otros jugadores a encontrar el lugar exacto</li>
-                  <li>• Selecciona la zona para facilitar los filtros de búsqueda</li>
-                  <li>• Puedes obtener coordenadas desde Google Maps haciendo clic derecho en el mapa</li>
+                  <li>• La zona ayuda a la estrategia de cercanía a funcionar mejor</li>
+                  <li>• Las coordenadas GPS permiten cálculos de distancia precisos</li>
+                  <li>• El horario influye en las recomendaciones automáticas</li>
+                  <li>• El sistema enviará notificaciones automáticas a jugadores compatibles</li>
                 </ul>
               </div>
             </div>
           </div>
         </Card>
 
-        {/* Resumen */}
+        {/* ✅ NUEVO: Resumen con preview de funcionamiento automático */}
         {formData.tipoDeporte && formData.cantidadJugadoresRequeridos && formData.horario && (
-          <Card className="p-6 bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen del Partido</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <Sparkles className="h-5 w-5 mr-2" />
+              Resumen del Partido Inteligente
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="flex items-center">
                 <span className="text-2xl mr-2">{getDeporteInfo(formData.tipoDeporte).icon}</span>
                 <div>
@@ -512,12 +723,40 @@ const CreatePartido = () => {
                 </div>
               </div>
               <div className="flex items-center">
-                <MapPin className="h-5 w-5 text-gray-400 mr-2" />
+                {estrategiaPreview && estrategiaPreview.icon && (
+                  <estrategiaPreview.icon className="h-5 w-5 text-gray-400 mr-2" />
+                )}
                 <div>
                   <p className="font-medium text-gray-900">
                     {formData.ubicacion.zona || 'Sin zona'}
                   </p>
                   <p className="text-gray-600">{formData.estrategiaEmparejamiento}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Funcionamiento automático */}
+            <div className="p-4 bg-white rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                <Zap className="h-4 w-4 mr-1" />
+                Funcionamiento Automático
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-blue-700">
+                <div>
+                  <span className="font-medium">📧 Notificaciones:</span>
+                  <p className="text-xs">Se enviarán automáticamente por email y push</p>
+                </div>
+                <div>
+                  <span className="font-medium">🎯 Emparejamiento:</span>
+                  <p className="text-xs">Algoritmo {formData.estrategiaEmparejamiento} activado</p>
+                </div>
+                <div>
+                  <span className="font-medium">⚡ Transiciones:</span>
+                  <p className="text-xs">Estados cambian automáticamente según horario</p>
+                </div>
+                <div>
+                  <span className="font-medium">🔄 Actualizaciones:</span>
+                  <p className="text-xs">Información en tiempo real para todos los jugadores</p>
                 </div>
               </div>
             </div>
@@ -538,7 +777,8 @@ const CreatePartido = () => {
             loading={submitLoading}
             className="min-w-32"
           >
-            Crear Partido
+            <Sparkles className="w-4 h-4 mr-2" />
+            Crear Partido Inteligente
           </Button>
         </div>
       </form>
