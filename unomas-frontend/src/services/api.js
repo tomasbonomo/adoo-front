@@ -258,6 +258,33 @@ class ApiService {
     });
   }
 
+  // NUEVOS: Métodos para gestión de partidos
+  cancelPartido(partidoId) {
+    return this.makeRequest(`/partidos/${partidoId}/cancelar`, {
+      method: 'PUT' // o DELETE, dependiendo de la lógica del backend
+    });
+  }
+
+  leavePartido(partidoId) {
+    return this.makeRequest(`/partidos/${partidoId}/salir`, {
+      method: 'POST' // o DELETE, dependiendo de la lógica del backend
+    });
+  }
+
+  updatePartido(partidoId, partidoData) {
+    const cleanedData = this.preparePartidoData(partidoData);
+    return this.makeRequest(`/partidos/${partidoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(cleanedData)
+    });
+  }
+
+  deletePartido(partidoId) {
+    return this.makeRequest(`/partidos/${partidoId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // =============== UBICACIONES ===============
   getZonas() {
     return this.makeRequest('/ubicaciones/zonas', { skipAuth: true });
