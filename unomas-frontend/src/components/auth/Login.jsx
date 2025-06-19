@@ -77,8 +77,20 @@ const Login = () => {
         navigate(from, { replace: true });
       })
       .catch((err) => {
+        // Manejo de errores personalizados según mensaje del backend
+        let mensaje = err?.message || '';
+        if (mensaje.toLowerCase().includes('bad credentials')) {
+          setFormErrors(prev => ({ ...prev, general: 'El email o la contraseña son incorrectos. Intenta nuevamente.' }));
+        } else if (mensaje.includes('contraseña') || mensaje.toLowerCase().includes('password')) {
+          setFormErrors(prev => ({ ...prev, general: 'Contraseña incorrecta. Intenta nuevamente.' }));
+        } else if (mensaje.toLowerCase().includes('usuario') && mensaje.toLowerCase().includes('no existe')) {
+          setFormErrors(prev => ({ ...prev, general: 'El usuario no existe. Verifica tu email.' }));
+        } else if (mensaje.toLowerCase().includes('email') && mensaje.toLowerCase().includes('no existe')) {
+          setFormErrors(prev => ({ ...prev, general: 'El email ingresado no está registrado.' }));
+        } else {
+          setFormErrors(prev => ({ ...prev, general: mensaje || 'Ocurrió un error al iniciar sesión. Intenta nuevamente.' }));
+        }
         console.error('Error en login:', err);
-        // El error ya se maneja en el contexto
       });
   };
 
@@ -174,6 +186,11 @@ const Login = () => {
               )}
             </div>
           </div>
+
+          {/* Mostrar error general arriba del formulario */}
+          {formErrors.general && (
+            <p className="text-red-500 text-sm text-center mb-2">{formErrors.general}</p>
+          )}
 
           {error && <ErrorMessage error={error} onClose={clearError} />}
 

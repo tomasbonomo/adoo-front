@@ -77,6 +77,7 @@ const CreatePartido = () => {
   const [success, setSuccess] = useState(null);
   const [deportes, setDeportes] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCreating, setShowCreating] = useState(false);
 
   const [formData, setFormData] = useState({
     tipoDeporte: '',
@@ -284,41 +285,30 @@ const CreatePartido = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
     setSubmitLoading(true);
+    setShowCreating(true);
     setError(null);
     setSuccess(null);
-
-    // ✅ PREPARAR datos incluyendo configuración avanzada
     const submitData = {
       ...formData,
-      // Incluir configuración específica de estrategia si es necesario
       ...(showAdvanced && formData.configuracionAvanzada.nivelMinimo && {
         configuracionEstrategia: formData.configuracionAvanzada
       })
     };
-
-    console.log('📤 Creando partido con datos avanzados:', submitData);
-
     apiService.createPartido(submitData)
       .then(response => {
-        console.log('✅ Partido creado con sistema automático:', response);
-        setSuccess('¡Partido creado exitosamente! El sistema automático gestionará las transiciones.');
-        setTimeout(() => {
-          navigate(`/partidos/${response.id}`);
-        }, 2000);
+        setSubmitLoading(false);
+        setShowCreating(false);
+        navigate(`/partidos/${response.id}`);
       })
       .catch(err => {
-        console.error('❌ Error creando partido:', err);
+        setSubmitLoading(false);
+        setShowCreating(false);
         setError(apiService.handleApiError(err));
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      })
-      .finally(() => {
-        setSubmitLoading(false);
       });
   };
 
@@ -369,6 +359,15 @@ const CreatePartido = () => {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Loading size="lg" text="Cargando formulario inteligente..." />
+      </div>
+    );
+  }
+
+  if (showCreating) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center justify-center min-h-[300px]">
+        <Loading size="lg" text="Creando partido inteligente..." />
+        <p className="mt-4 text-blue-700 text-lg font-medium">Por favor espera, estamos armando tu partido y emparejando jugadores compatibles.</p>
       </div>
     );
   }

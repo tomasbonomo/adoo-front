@@ -121,8 +121,16 @@ const Register = () => {
         navigate('/dashboard', { replace: true });
       })
       .catch((err) => {
+        // Manejo de errores personalizados según mensaje del backend
+        let mensaje = err?.message || '';
+        if (mensaje.toLowerCase().includes('email') && mensaje.toLowerCase().includes('ya existe')) {
+          setFormErrors(prev => ({ ...prev, general: 'Ya existe una cuenta con ese email. Usa otro o inicia sesión.' }));
+        } else if (mensaje.toLowerCase().includes('usuario') && mensaje.toLowerCase().includes('ya existe')) {
+          setFormErrors(prev => ({ ...prev, general: 'El nombre de usuario ya está en uso. Elige otro.' }));
+        } else {
+          setFormErrors(prev => ({ ...prev, general: mensaje || 'Ocurrió un error al crear la cuenta. Intenta nuevamente.' }));
+        }
         console.error('Error en registro:', err);
-        // El error ya se maneja en el contexto
       });
   };
 
@@ -303,6 +311,11 @@ const Register = () => {
               onChange={handleChange}
             />
           </div>
+
+          {/* Mostrar error general arriba del formulario */}
+          {formErrors.general && (
+            <p className="text-red-500 text-sm text-center mb-2">{formErrors.general}</p>
+          )}
 
           {error && <ErrorMessage error={error} onClose={clearError} />}
 
