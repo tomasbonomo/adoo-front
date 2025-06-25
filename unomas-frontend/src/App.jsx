@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/common';
@@ -6,6 +6,8 @@ import Navbar from './components/layout/Navbar';
 import { PartidoProvider } from './contexts/PartidoContext';
 import { GlobalNotificationProvider } from './contexts/GlobalNotificationContext';
 import GlobalNotificationToast from './components/notificaciones/GlobalNotificationToast';
+import { solicitarToken } from "./firebase";
+import './App.css';
 
 // Auth components
 import Login from './components/auth/Login';
@@ -152,6 +154,10 @@ const NotFound = () => {
 
 // Main App component
 function App() {
+  useEffect(() => {
+    solicitarToken();
+  }, []);
+
   return (
     <Router>
       <GlobalNotificationProvider>

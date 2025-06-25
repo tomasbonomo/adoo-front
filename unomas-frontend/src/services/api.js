@@ -317,6 +317,12 @@ class ApiService {
     });
   }
 
+  getFirebaseStatus() {
+    return this.makeRequest('/notificaciones/status', {
+      method: 'GET'
+    });
+  }
+
   testEmail(email) {
     return this.makeRequest(`/notificaciones/test-email?email=${encodeURIComponent(email)}`, {
       method: 'POST'
@@ -325,6 +331,18 @@ class ApiService {
 
   testPush(token) {
     return this.makeRequest(`/notificaciones/test-push?token=${encodeURIComponent(token)}`, {
+      method: 'POST'
+    });
+  }
+
+  testPushDetailed(token) {
+    return this.makeRequest(`/notificaciones/test-push-detailed?token=${encodeURIComponent(token)}`, {
+      method: 'POST'
+    });
+  }
+
+  enviarPushPrueba(token) {
+    return this.makeRequest('/notificaciones/test-push?token=' + encodeURIComponent(token), {
       method: 'POST'
     });
   }
@@ -379,6 +397,14 @@ class ApiService {
 
   obtenerComentariosPartido(partidoId, page = 0, size = 10) {
     return this.makeRequest(`/partidos/${partidoId}/comentarios?page=${page}&size=${size}`);
+  }
+
+  // =============== PUSH TOKEN ===============
+  guardarPushToken(token) {
+    return this.makeRequest('/usuarios/push-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    });
   }
 }
 
