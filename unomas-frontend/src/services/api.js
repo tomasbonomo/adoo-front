@@ -366,14 +366,19 @@ class ApiService {
 
   // =============== COMENTARIOS ===============
   agregarComentario(partidoId, comentarioData) {
+    // Ajustar el payload para que coincida con el backend
+    const payload = {
+      contenido: comentarioData.comentario,
+      calificacion: comentarioData.calificacion
+    };
     return this.makeRequest(`/partidos/${partidoId}/comentar`, {
       method: 'POST',
-      body: JSON.stringify(comentarioData)
+      body: JSON.stringify(payload)
     });
   }
 
-  obtenerComentariosPartido(partidoId) {
-    return this.makeRequest(`/comentarios/partido/${partidoId}`);
+  obtenerComentariosPartido(partidoId, page = 0, size = 10) {
+    return this.makeRequest(`/partidos/${partidoId}/comentarios?page=${page}&size=${size}`);
   }
 }
 

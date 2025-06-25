@@ -11,7 +11,7 @@ const ComentariosSection = ({ partidoId, canComment }) => {
   const cargarComentarios = () => {
     if (!mostrar) return;
     apiService.obtenerComentariosPartido(partidoId)
-      .then(response => setComentarios(response.content || []))
+      .then(response => setComentarios((response.content || response.content === undefined) ? (response.content || []) : (response || [])))
       .catch(err => console.error('Error:', err));
   };
 
@@ -82,14 +82,14 @@ const ComentariosSection = ({ partidoId, canComment }) => {
                 <div key={comentario.id} className="bg-gray-50 p-3 rounded">
                   <div className="flex justify-between items-start">
                     <div>
-                      <strong>{comentario.usuarioNombre}</strong>
+                      <strong>{comentario.nombreUsuario || comentario.usuarioNombre}</strong>
                       <div className="text-yellow-400">
                         {'★'.repeat(comentario.calificacion)}
                       </div>
-                      <p className="text-gray-700 mt-1">{comentario.comentario}</p>
+                      <p className="text-gray-700 mt-1">{comentario.contenido || comentario.comentario}</p>
                     </div>
                     <span className="text-xs text-gray-500">
-                      {new Date(comentario.fechaCreacion).toLocaleDateString()}
+                      {comentario.fechaCreacion ? new Date(comentario.fechaCreacion).toLocaleDateString() : ''}
                     </span>
                   </div>
                 </div>

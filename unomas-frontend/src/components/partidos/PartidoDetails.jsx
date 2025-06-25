@@ -440,6 +440,11 @@ const PartidoDetails = () => {
         </div>
       </Card>
 
+      {/* Comentarios para partidos finalizados: AHORA MÁS ARRIBA */}
+      {partido && partido.estado === 'FINALIZADO' && (
+        <ComentariosSection partidoId={id} canComment={canComment()} />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Información principal */}
         <div className="lg:col-span-2 space-y-6">
@@ -671,11 +676,6 @@ const PartidoDetails = () => {
           </Card>
         </div>
       </div>
-
-      {/* Comentarios para partidos finalizados */}
-      {partido.estado === 'FINALIZADO' && (
-        <ComentariosSection partidoId={partido.id} canComment={canComment()} />
-      )}
     </div>
   );
 };
