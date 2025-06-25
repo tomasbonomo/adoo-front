@@ -26,10 +26,16 @@ const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [stats, setStats] = useState(null);
   const [deportes, setDeportes] = useState([]);
+  const [zonas, setZonas] = useState([]);
+  const [otraZona, setOtraZona] = useState('');
 
   const [editData, setEditData] = useState({
     deporteFavorito: '',
-    nivelJuego: ''
+    nivelJuego: '',
+    direccion: '',
+    zona: '',
+    latitud: '',
+    longitud: ''
   });
 
   useEffect(() => {
@@ -40,10 +46,21 @@ const UserProfile = () => {
     if (user) {
       setEditData({
         deporteFavorito: user.deporteFavorito || '',
-        nivelJuego: user.nivelJuego || ''
+        nivelJuego: user.nivelJuego || '',
+        direccion: user.ubicacion?.direccion || '',
+        zona: user.ubicacion?.zona || '',
+        latitud: user.ubicacion?.latitud || '',
+        longitud: user.ubicacion?.longitud || ''
       });
+      setOtraZona('');
     }
   }, [user]);
+
+  useEffect(() => {
+    apiService.getZonas()
+      .then(zs => setZonas(zs || []))
+      .catch(() => setZonas([]));
+  }, []);
 
   const loadProfileData = () => {
     setLoading(true);
@@ -93,45 +110,51 @@ const loadDeportes = () => {
     setIsEditing(false);
     setEditData({
       deporteFavorito: user.deporteFavorito || '',
-      nivelJuego: user.nivelJuego || ''
+      nivelJuego: user.nivelJuego || '',
+      direccion: user.ubicacion?.direccion || '',
+      zona: user.ubicacion?.zona || '',
+      latitud: user.ubicacion?.latitud || '',
+      longitud: user.ubicacion?.longitud || ''
     });
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditData(prev => ({ ...prev, [field]: value }));
+    if (field === 'zona' && value !== 'OTRO') setOtraZona('');
+  };
+
+  const handleOtraZonaChange = (e) => {
+    setOtraZona(e.target.value);
+    setEditData(prev => ({ ...prev, zona: e.target.value }));
   };
 
   const handleSave = () => {
     setUpdateLoading(true);
     setError(null);
     setSuccess(null);
-
-    // Preparar datos para actualización (convertir strings vacíos a null)
     const updateData = {
       deporteFavorito: editData.deporteFavorito || null,
-      nivelJuego: editData.nivelJuego || null
+      nivelJuego: editData.nivelJuego || null,
+      ubicacion: {
+        direccion: editData.direccion,
+        zona: editData.zona,
+        latitud: editData.latitud ? parseFloat(editData.latitud) : null,
+        longitud: editData.longitud ? parseFloat(editData.longitud) : null
+      }
     };
-
     updateProfile(updateData)
       .then(() => {
         setSuccess('Perfil actualizado exitosamente');
         setIsEditing(false);
-        // Recargar estadísticas que podrían haber cambiado
         loadUserStats();
       })
       .catch(err => {
-        console.error('Error actualizando perfil:', err);
         setError(apiService.handleApiError(err));
       })
       .finally(() => {
         setUpdateLoading(false);
       });
   };
-
-  const handleChange = (field, value) => {
-    setEditData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-
 
   const getNivelColor = (nivel) => {
     switch(nivel) {
@@ -274,7 +297,7 @@ const loadDeportes = () => {
                       <Select
                         options={deporteOptions}
                         value={editData.deporteFavorito}
-                        onChange={(e) => handleChange('deporteFavorito', e.target.value)}
+                        onChange={(e) => handleEditChange('deporteFavorito', e.target.value)}
                       />
                     ) : (
                       <div className="flex items-center">
@@ -303,7 +326,7 @@ const loadDeportes = () => {
                       <Select
                         options={nivelOptions}
                         value={editData.nivelJuego}
-                        onChange={(e) => handleChange('nivelJuego', e.target.value)}
+                        onChange={(e) => handleEditChange('nivelJuego', e.target.value)}
                       />
                     ) : (
                       <div>
@@ -313,6 +336,72 @@ const loadDeportes = () => {
                           </span>
                         ) : (
                           <span className="text-sm text-gray-400">No definido</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ubicación */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      Barrio/Zona
+                    </label>
+                    {isEditing ? (
+                      <>
+                        <select
+                          name="zona"
+                          className="input-field"
+                          value={editData.zona}
+                          onChange={(e) => handleEditChange('zona', e.target.value)}
+                        >
+                          <option value="">Selecciona tu barrio/zona</option>
+                          {zonas.map(z => (
+                            <option key={z} value={z}>{z}</option>
+                          ))}
+                          <option value="OTRO">Otro...</option>
+                        </select>
+                        {editData.zona === 'OTRO' && (
+                          <input
+                            type="text"
+                            name="otraZona"
+                            className="input-field mt-2"
+                            placeholder="Escribe tu barrio/zona"
+                            value={otraZona}
+                            onChange={handleOtraZonaChange}
+                          />
+                        )}
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <input
+                            type="text"
+                            name="direccion"
+                            className="input-field"
+                            placeholder="Dirección (ej: Av. Siempre Viva 123)"
+                            value={editData.direccion}
+                            onChange={(e) => handleEditChange('direccion', e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            name="latitud"
+                            className="input-field"
+                            placeholder="Latitud"
+                            value={editData.latitud}
+                            onChange={(e) => handleEditChange('latitud', e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            name="longitud"
+                            className="input-field"
+                            placeholder="Longitud"
+                            value={editData.longitud}
+                            onChange={(e) => handleEditChange('longitud', e.target.value)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <span className="text-sm text-gray-600">{user.ubicacion?.zona || 'No definido'}</span>
+                        {user.ubicacion?.direccion && (
+                          <span className="text-xs text-gray-500 ml-2">{user.ubicacion.direccion}</span>
                         )}
                       </div>
                     )}

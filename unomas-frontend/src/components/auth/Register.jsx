@@ -21,6 +21,15 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [deportes, setDeportes] = useState([]);
+  const [ubicacion, setUbicacion] = useState({
+    direccion: '',
+    zona: '',
+    latitud: '',
+    longitud: ''
+  });
+  const [gpsStatus, setGpsStatus] = useState('');
+  const [zonas, setZonas] = useState([]);
+  const [otraZona, setOtraZona] = useState('');
 
   // Redirigir si ya está logueado
   useEffect(() => {
@@ -34,6 +43,13 @@ const Register = () => {
     loadDeportes();
     clearError();
   }, [clearError]);
+
+  // Cargar zonas al montar
+  useEffect(() => {
+    apiService.getZonas()
+      .then(zs => setZonas(zs || []))
+      .catch(() => setZonas([]));
+  }, []);
 
   const loadDeportes = () => {
     apiService.getDeportesTypes()
@@ -94,6 +110,44 @@ const Register = () => {
     }
   };
 
+  // Obtener ubicación por GPS
+  const obtenerUbicacionPorGPS = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus('La geolocalización no está soportada por tu navegador.');
+      return;
+    }
+    setGpsStatus('Obteniendo ubicación...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUbicacion(prev => ({
+          ...prev,
+          latitud: position.coords.latitude,
+          longitud: position.coords.longitude
+        }));
+        setGpsStatus('¡Ubicación obtenida!');
+      },
+      (error) => {
+        setGpsStatus('No se pudo obtener la ubicación: ' + error.message);
+      }
+    );
+  };
+
+  const handleUbicacionChange = (e) => {
+    const { name, value } = e.target;
+    setUbicacion(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleZonaChange = (e) => {
+    const value = e.target.value;
+    setUbicacion(prev => ({ ...prev, zona: value }));
+    if (value !== 'OTRO') setOtraZona('');
+  };
+
+  const handleOtraZonaChange = (e) => {
+    setOtraZona(e.target.value);
+    setUbicacion(prev => ({ ...prev, zona: e.target.value }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -112,6 +166,19 @@ const Register = () => {
     }
     if (!registerData.nivelJuego) {
       registerData.nivelJuego = null;
+    }
+    
+    // Adjuntar ubicación si hay algún dato
+    const ubicacionData = (ubicacion.direccion || ubicacion.zona || ubicacion.latitud || ubicacion.longitud)
+      ? {
+          direccion: ubicacion.direccion,
+          zona: ubicacion.zona,
+          latitud: ubicacion.latitud ? parseFloat(ubicacion.latitud) : null,
+          longitud: ubicacion.longitud ? parseFloat(ubicacion.longitud) : null
+        }
+      : null;
+    if (ubicacionData) {
+      registerData.ubicacion = ubicacionData;
     }
     
     console.log('Datos a enviar:', registerData);
@@ -310,6 +377,69 @@ const Register = () => {
               value={formData.nivelJuego}
               onChange={handleChange}
             />
+
+            {/* Ubicación */}
+            <div className="border rounded p-3 bg-gray-50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-gray-700">Ubicación (opcional)</span>
+                <button type="button" onClick={obtenerUbicacionPorGPS} className="text-xs text-primary-600 hover:underline">Usar GPS</button>
+              </div>
+              <div className="mb-2">
+                <input
+                  type="text"
+                  name="direccion"
+                  className="input-field"
+                  placeholder="Dirección (ej: Av. Siempre Viva 123)"
+                  value={ubicacion.direccion}
+                  onChange={handleUbicacionChange}
+                />
+              </div>
+              <div className="mb-2">
+                <select
+                  name="zona"
+                  className="input-field"
+                  value={ubicacion.zona}
+                  onChange={handleZonaChange}
+                >
+                  <option value="">Selecciona tu barrio/zona</option>
+                  {zonas.map(z => (
+                    <option key={z} value={z}>{z}</option>
+                  ))}
+                  <option value="OTRO">Otro...</option>
+                </select>
+                {ubicacion.zona === 'OTRO' && (
+                  <input
+                    type="text"
+                    name="otraZona"
+                    className="input-field mt-2"
+                    placeholder="Escribe tu barrio/zona"
+                    value={otraZona}
+                    onChange={handleOtraZonaChange}
+                  />
+                )}
+              </div>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  name="latitud"
+                  className="input-field"
+                  placeholder="Latitud"
+                  value={ubicacion.latitud}
+                  onChange={handleUbicacionChange}
+                  readOnly={gpsStatus === '¡Ubicación obtenida!'}
+                />
+                <input
+                  type="text"
+                  name="longitud"
+                  className="input-field"
+                  placeholder="Longitud"
+                  value={ubicacion.longitud}
+                  onChange={handleUbicacionChange}
+                  readOnly={gpsStatus === '¡Ubicación obtenida!'}
+                />
+              </div>
+              {gpsStatus && <p className="text-xs text-gray-500">{gpsStatus}</p>}
+            </div>
           </div>
 
           {/* Mostrar error general arriba del formulario */}

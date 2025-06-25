@@ -263,11 +263,10 @@ const SearchPartidos = () => {
   // ✅ NUEVO: Compatibilidad visual mejorada
   const getCompatibilityDisplay = (compatibilidad) => {
     if (!compatibilidad || compatibilidad === 0) return null;
-    
     const percentage = Math.round(compatibilidad * 100);
     let variant = 'gray';
     let label = '';
-    
+    let extra = null;
     if (percentage >= 90) {
       variant = 'purple';
       label = 'Excelente';
@@ -280,15 +279,19 @@ const SearchPartidos = () => {
     } else if (percentage >= 60) {
       variant = 'yellow';
       label = 'Regular';
+    } else {
+      variant = 'orange';
+      label = 'Compatibilidad baja';
+      extra = <span className="text-xs text-orange-600 ml-2">Puedes unirte, pero la distancia o zona es lejana.</span>;
     }
-
     return (
       <div className="flex items-center space-x-1">
         <Badge variant={variant}>
           <Star className="w-3 h-3 mr-1" />
           {percentage}%
         </Badge>
-        {label && <span className="text-xs text-gray-600">{label}</span>}
+        {label && <span className={`text-xs ${variant === 'orange' ? 'text-orange-600 font-semibold' : 'text-gray-600'}`}>{label}</span>}
+        {extra}
       </div>
     );
   };
@@ -585,6 +588,21 @@ const SearchPartidos = () => {
                       </div>
                     </div>
 
+                    {/* Mensaje de compatibilidad y estrategia SIEMPRE visible */}
+                    <div className={`rounded px-3 py-2 mb-2 text-sm font-medium flex items-center gap-2 ${
+                      partido.compatibilidad >= 0.9 ? 'bg-green-50 text-green-800' :
+                      partido.compatibilidad >= 0.7 ? 'bg-blue-50 text-blue-800' :
+                      partido.compatibilidad >= 0.6 ? 'bg-yellow-50 text-yellow-800' :
+                      'bg-orange-50 text-orange-800'
+                    }`}>
+                      {partido.compatibilidad >= 0.9 && <span>Alta compatibilidad</span>}
+                      {partido.compatibilidad >= 0.7 && partido.compatibilidad < 0.9 && <span>Buena compatibilidad</span>}
+                      {partido.compatibilidad >= 0.6 && partido.compatibilidad < 0.7 && <span>Compatibilidad regular</span>}
+                      {partido.compatibilidad < 0.6 && <span>Compatibilidad baja</span>}
+                      <span>({Math.round(partido.compatibilidad * 100)}%)</span>
+                      <span className="ml-2">- Estrategia: {partido.estrategiaEmparejamiento}</span>
+                    </div>
+
                     {/* Información del partido */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
@@ -615,21 +633,6 @@ const SearchPartidos = () => {
                         </div>
                       </div>
                     </div>
-
-                    {/* ✅ NUEVA: Información de estrategia y compatibilidad */}
-                    {partido.compatibilidad > 0.7 && (
-                      <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                        <div className="flex items-center text-green-700">
-                          <Target className="h-4 w-4 mr-2" />
-                          <span className="text-sm font-medium">
-                            Alta compatibilidad ({Math.round(partido.compatibilidad * 100)}%)
-                          </span>
-                          <span className="ml-2 text-xs">
-                            - Estrategia: {partido.estrategiaEmparejamiento}
-                          </span>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Acciones */}
                     <div className="flex items-center justify-between">
