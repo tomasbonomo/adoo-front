@@ -560,118 +560,133 @@ const SearchPartidos = () => {
         <>
           {/* Lista de partidos mejorada */}
           <div className="space-y-4 mb-8">
-            {partidos.map(partido => (
-              <Card key={partido.id} className="p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-3">
-                      <span className="text-2xl mr-3">
-                        {getDeporteIcon(partido.deporte.tipo)}
-                      </span>
+            {partidos.map(partido => {
+                // Log para debug
+                console.log('Partido:', partido);
+                // Normalizo valores para robustez
+                const estrategia = (partido.estrategiaEmparejamiento || '').toUpperCase();
+                const nivelMin = partido.nivelMinimo ? (typeof partido.nivelMinimo === 'string' ? partido.nivelMinimo.charAt(0).toUpperCase() + partido.nivelMinimo.slice(1).toLowerCase() : partido.nivelMinimo) : null;
+                const nivelMax = partido.nivelMaximo ? (typeof partido.nivelMaximo === 'string' ? partido.nivelMaximo.charAt(0).toUpperCase() + partido.nivelMaximo.slice(1).toLowerCase() : partido.nivelMaximo) : null;
+                return (
+                  <Card key={partido.id} className="p-6 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1 flex-wrap">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {partido.deporte.nombre}
-                          </h3>
-                          {getEstadoBadge(partido.estado)}
-                          {getEstrategiaBadge(partido.estrategiaEmparejamiento)}
-                          {getCompatibilityDisplay(partido.compatibilidad)}
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          Organizado por {partido.organizador.nombreUsuario}
-                          {partido.organizador.nivelJuego && (
-                            <span className="ml-2 text-xs">
-                              • Nivel: {partido.organizador.nivelJuego}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Mensaje de compatibilidad y estrategia SIEMPRE visible */}
-                    <div className={`rounded px-3 py-2 mb-2 text-sm font-medium flex items-center gap-2 ${
-                      partido.compatibilidad >= 0.9 ? 'bg-green-50 text-green-800' :
-                      partido.compatibilidad >= 0.7 ? 'bg-blue-50 text-blue-800' :
-                      partido.compatibilidad >= 0.6 ? 'bg-yellow-50 text-yellow-800' :
-                      'bg-orange-50 text-orange-800'
-                    }`}>
-                      {partido.compatibilidad >= 0.9 && <span>Alta compatibilidad</span>}
-                      {partido.compatibilidad >= 0.7 && partido.compatibilidad < 0.9 && <span>Buena compatibilidad</span>}
-                      {partido.compatibilidad >= 0.6 && partido.compatibilidad < 0.7 && <span>Compatibilidad regular</span>}
-                      {partido.compatibilidad < 0.6 && <span>Compatibilidad baja</span>}
-                      <span>({Math.round(partido.compatibilidad * 100)}%)</span>
-                      <span className="ml-2">- Estrategia: {partido.estrategiaEmparejamiento}</span>
-                    </div>
-
-                    {/* Información del partido */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
-                      <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        <span>
-                          {partido.ubicacion.direccion}
-                          {partido.ubicacion.zona && (
-                            <span className="text-blue-600 ml-1">• {partido.ubicacion.zona}</span>
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>{formatDate(partido.horario)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Users className="h-4 w-4 mr-2" />
-                        <span>
-                          {partido.cantidadJugadoresActual}/{partido.cantidadJugadoresRequeridos} jugadores
-                        </span>
-                        <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{ 
-                              width: `${(partido.cantidadJugadoresActual / partido.cantidadJugadoresRequeridos) * 100}%` 
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Acciones */}
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-gray-500">
-                        ID: #{partido.id} • Duración: {partido.duracion} min
-                      </div>
-                      <div className="flex space-x-2">
-                        <Link
-                          to={`/partidos/${partido.id}`}
-                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                        >
-                          Ver detalles
-                        </Link>
-                        {partido.puedeUnirse && (
-                          <>
-                            <span className="text-gray-300">•</span>
-                            <button
-                              onClick={() => joinPartido(partido.id)}
-                              disabled={partido.joining}
-                              className={`text-sm font-medium px-3 py-1 rounded transition-colors ${
-                                partido.joining 
-                                  ? 'text-gray-400 cursor-not-allowed'
-                                  : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                              }`}
-                            >
-                              {partido.joining ? (
-                                '⏳ Uniéndose...'
-                              ) : (
-                                <>🚀 Unirse al partido</>
+                        <div className="flex items-center mb-3">
+                          <span className="text-2xl mr-3">
+                            {getDeporteIcon(partido.deporte.tipo)}
+                          </span>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1 flex-wrap">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {partido.deporte.nombre}
+                              </h3>
+                              {getEstadoBadge(partido.estado)}
+                              {getEstrategiaBadge(partido.estrategiaEmparejamiento)}
+                              {getCompatibilityDisplay(partido.compatibilidad)}
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Organizado por {partido.organizador.nombreUsuario}
+                              {partido.organizador.nivelJuego && (
+                                <span className="ml-2 text-xs">
+                                  • Nivel: {partido.organizador.nivelJuego}
+                                </span>
                               )}
-                            </button>
-                          </>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Mensaje de compatibilidad y estrategia SIEMPRE visible */}
+                        <div className={`rounded px-3 py-2 mb-2 text-sm font-medium flex items-center gap-2 ${
+                          partido.compatibilidad >= 0.9 ? 'bg-green-50 text-green-800' :
+                          partido.compatibilidad >= 0.7 ? 'bg-blue-50 text-blue-800' :
+                          partido.compatibilidad >= 0.6 ? 'bg-yellow-50 text-yellow-800' :
+                          'bg-orange-50 text-orange-800'
+                        }`}>
+                          {partido.compatibilidad >= 0.9 && <span>Alta compatibilidad</span>}
+                          {partido.compatibilidad >= 0.7 && partido.compatibilidad < 0.9 && <span>Buena compatibilidad</span>}
+                          {partido.compatibilidad >= 0.6 && partido.compatibilidad < 0.7 && <span>Compatibilidad regular</span>}
+                          {partido.compatibilidad < 0.6 && <span>Compatibilidad baja</span>}
+                          <span>({Math.round(partido.compatibilidad * 100)}%)</span>
+                          <span className="ml-2">- Estrategia: {partido.estrategiaEmparejamiento}</span>
+                        </div>
+
+                        {/* Mostrar nivel necesario si la estrategia es POR_NIVEL */}
+                        {estrategia === 'POR_NIVEL' && nivelMin && (
+                          <div className="text-xs text-blue-700 font-semibold mb-1">
+                            Nivel necesario: {nivelMin === nivelMax || !nivelMax ? nivelMin : `${nivelMin} a ${nivelMax}`}
+                          </div>
                         )}
+
+                        {/* Información del partido */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
+                          <div className="flex items-center">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            <span>
+                              {partido.ubicacion.direccion}
+                              {partido.ubicacion.zona && (
+                                <span className="text-blue-600 ml-1">• {partido.ubicacion.zona}</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-2" />
+                            <span>{formatDate(partido.horario)}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-2" />
+                            <span>
+                              {partido.cantidadJugadoresActual}/{partido.cantidadJugadoresRequeridos} jugadores
+                            </span>
+                            <div className="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ 
+                                  width: `${(partido.cantidadJugadoresActual / partido.cantidadJugadoresRequeridos) * 100}%` 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-gray-500">
+                            ID: #{partido.id} • Duración: {partido.duracion} min
+                          </div>
+                          <div className="flex space-x-2">
+                            <Link
+                              to={`/partidos/${partido.id}`}
+                              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                            >
+                              Ver detalles
+                            </Link>
+                            {partido.puedeUnirse && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <button
+                                  onClick={() => joinPartido(partido.id)}
+                                  disabled={partido.joining}
+                                  className={`text-sm font-medium px-3 py-1 rounded transition-colors ${
+                                    partido.joining 
+                                      ? 'text-gray-400 cursor-not-allowed'
+                                      : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                  }`}
+                                >
+                                  {partido.joining ? (
+                                    '⏳ Uniéndose...'
+                                  ) : (
+                                    <>🚀 Unirse al partido</>
+                                  )}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                  </Card>
+                );
+              })}
           </div>
 
           {/* Paginación */}

@@ -208,12 +208,24 @@ class ApiService {
       estrategiaEmparejamiento: partidoData.estrategiaEmparejamiento || 'POR_NIVEL',
       ubicacion: {
         direccion: partidoData.ubicacion.direccion,
-        // Convertir strings vacíos a null
         latitud: partidoData.ubicacion.latitud ? parseFloat(partidoData.ubicacion.latitud) : null,
         longitud: partidoData.ubicacion.longitud ? parseFloat(partidoData.ubicacion.longitud) : null,
         zona: partidoData.ubicacion.zona || null
       }
     };
+
+    // Agregar niveles si la estrategia es POR_NIVEL
+    if (
+      partidoData.estrategiaEmparejamiento === 'POR_NIVEL' &&
+      partidoData.configuracionAvanzada
+    ) {
+      if (partidoData.configuracionAvanzada.nivelMinimo) {
+        cleaned.nivelMinimo = partidoData.configuracionAvanzada.nivelMinimo;
+      }
+      if (partidoData.configuracionAvanzada.nivelMaximo) {
+        cleaned.nivelMaximo = partidoData.configuracionAvanzada.nivelMaximo;
+      }
+    }
 
     // Log de los datos limpiados para debugging
     if (config.app.isDevelopment) {

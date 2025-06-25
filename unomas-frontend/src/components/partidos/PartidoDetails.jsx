@@ -42,6 +42,8 @@ const PartidoDetails = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
+  const estadosNoCancelables = ['EN_JUEGO', 'FINALIZADO', 'CANCELADO'];
+
   useEffect(() => {
     loadPartido();
     
@@ -281,6 +283,15 @@ const PartidoDetails = () => {
 
   const canManage = () => {
     return isOrganizador() && ['NECESITAMOS_JUGADORES', 'PARTIDO_ARMADO'].includes(partido.estado);
+  };
+
+  const handleCancelar = () => {
+    if (estadosNoCancelables.includes(partido.estado)) {
+      setError('No se puede cancelar un partido que está EN JUEGO, FINALIZADO o ya CANCELADO.');
+      return;
+    }
+    // Aquí podrías pedir motivo si quieres
+    changeState('CANCELADO');
   };
 
   if (loading) {
@@ -604,8 +615,13 @@ const PartidoDetails = () => {
                           Confirmar Partido
                         </Button>
                       )}
-                      <Button onClick={() => changeState('CANCELADO', 'Cancelado por el organizador')} loading={actionLoading} variant="danger" className="w-full">
-                        Cancelar Partido
+                      <Button
+                        variant="danger"
+                        disabled={estadosNoCancelables.includes(partido.estado) || actionLoading}
+                        onClick={handleCancelar}
+                        className="mt-4"
+                      >
+                        Cancelar partido
                       </Button>
                     </>
                   )}
