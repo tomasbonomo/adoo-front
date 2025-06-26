@@ -9,7 +9,7 @@ const PushTest = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState('eggmB1YNO_MCE3E35SFL8S:APA91bE1wKeKLmywwaisFVhOZyYmryHkeKzGoetHhD2WLHeo2uW2kJhaTGG4sZ-hgdJagMjstrpY5CpLtJIluxGigFVVIUZ0aMmpU44CMC9IPh8QqpLloZk');
   const [firebaseStatus, setFirebaseStatus] = useState({
     backendConfigured: false,
     backendStatus: '',
@@ -49,19 +49,8 @@ const PushTest = () => {
         setFirebaseStatus(prev => ({ ...prev, serviceWorkerRegistered: hasFirebaseSW }));
       }
 
-      // Obtener token FCM
-      try {
-        const messaging = getMessaging(app);
-        const VAPID_KEY = "BHZ-U4vIghYz4LSZQ3MYbolcxzFLwqD6n8oeoARbZ38Eprr8O4g7cv5KKNVtxRAkV-Uoe6QSEWOPgUmyE7dvwew";
-        
-        const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY });
-        if (currentToken) {
-          setToken(currentToken);
-          setFirebaseStatus(prev => ({ ...prev, frontendToken: currentToken }));
-        }
-      } catch (tokenError) {
-        console.error('Error obteniendo token FCM:', tokenError);
-      }
+      // Usar el token específico en lugar de obtenerlo dinámicamente
+      setFirebaseStatus(prev => ({ ...prev, frontendToken: token }));
 
       // Verificar estado del backend
       try {
@@ -210,7 +199,7 @@ const PushTest = () => {
               {getStatusIcon(!!firebaseStatus.frontendToken)}
               <span className="text-sm">Token FCM:</span>
               <span className={`text-sm font-medium ${firebaseStatus.frontendToken ? 'text-green-600' : 'text-red-600'}`}>
-                {firebaseStatus.frontendToken ? 'Obtenido' : 'No obtenido'}
+                {firebaseStatus.frontendToken ? 'Configurado' : 'No configurado'}
               </span>
             </div>
           </div>
@@ -224,12 +213,12 @@ const PushTest = () => {
 
         {/* Token FCM */}
         <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-          <h4 className="font-medium text-blue-900 mb-2">Token FCM</h4>
+          <h4 className="font-medium text-blue-900 mb-2">Token FCM (Configurado Manualmente)</h4>
           <div className="flex space-x-2">
             <input
               type="text"
               value={token}
-              readOnly
+              onChange={(e) => setToken(e.target.value)}
               className="flex-1 px-3 py-2 border border-blue-200 rounded text-sm font-mono bg-white"
               placeholder="Token FCM no disponible"
             />
@@ -242,11 +231,9 @@ const PushTest = () => {
               Copiar
             </Button>
           </div>
-          {!token && (
-            <p className="text-xs text-blue-600 mt-1">
-              No se pudo obtener el token FCM. Verifica los permisos de notificación.
-            </p>
-          )}
+          <p className="text-xs text-blue-600 mt-1">
+            Token FCM configurado manualmente para pruebas
+          </p>
         </div>
 
         {/* Acciones */}
@@ -311,6 +298,7 @@ const PushTest = () => {
                 <li>• El Service Worker debe estar registrado correctamente</li>
                 <li>• Firebase debe estar configurado tanto en frontend como backend</li>
                 <li>• Las notificaciones pueden tardar unos segundos en llegar</li>
+                <li>• Token FCM configurado manualmente para pruebas específicas</li>
               </ul>
             </div>
           </div>

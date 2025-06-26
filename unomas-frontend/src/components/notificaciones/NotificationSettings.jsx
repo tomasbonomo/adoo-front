@@ -37,7 +37,7 @@ const NotificationSettings = () => {
 
   const [testData, setTestData] = useState({
     testEmail: user?.email || '',
-    testPushToken: ''
+    testPushToken: 'eggmB1YNO_MCE3E35SFL8S:APA91bE1wKeKLmywwaisFVhOZyYmryHkeKzGoetHhD2WLHeo2uW2kJhaTGG4sZ-hgdJagMjstrpY5CpLtJIluxGigFVVIUZ0aMmpU44CMC9IPh8QqpLloZk'
   });
 
   const [firebaseStatus, setFirebaseStatus] = useState({
@@ -51,19 +51,8 @@ const NotificationSettings = () => {
   useEffect(() => {
     loadNotificationSettings();
     checkFirebaseStatus();
-    // Obtener token FCM del navegador y autocompletar el input
-    const messaging = getMessaging(app);
-    const VAPID_KEY = "BHZ-U4vIghYz4LSZQ3MYbolcxzFLwqD6n8oeoARbZ38Eprr8O4g7cv5KKNVtxRAkV-Uoe6QSEWOPgUmyE7dvwew"; // Reemplaza por tu clave pública de Firebase
-    getToken(messaging, { vapidKey: VAPID_KEY })
-      .then((currentToken) => {
-        if (currentToken) {
-          setTestData(prev => ({ ...prev, testPushToken: currentToken }));
-          setFirebaseStatus(prev => ({ ...prev, frontendToken: currentToken }));
-        }
-      })
-      .catch((err) => {
-        console.error("Error obteniendo token FCM:", err);
-      });
+    // Usar el token específico en lugar de obtenerlo dinámicamente
+    setFirebaseStatus(prev => ({ ...prev, frontendToken: testData.testPushToken }));
   }, []);
 
   const loadNotificationSettings = () => {
@@ -437,13 +426,13 @@ const NotificationSettings = () => {
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="flex items-center mb-3">
               <Smartphone className="h-5 w-5 text-green-600 mr-2" />
-              <h4 className="font-medium text-green-900">Prueba de Push Notification</h4>
+              <h4 className="font-medium text-green-900">Prueba de Push Notification (Token Manual)</h4>
             </div>
             <div className="flex space-x-3">
               <Input
                 placeholder="Token de dispositivo push"
                 value={testData.testPushToken}
-                readOnly
+                onChange={(e) => handleTestDataChange('testPushToken', e.target.value)}
                 className="flex-1"
               />
               <Button
@@ -457,7 +446,7 @@ const NotificationSettings = () => {
               </Button>
             </div>
             <p className="text-xs text-green-700 mt-2">
-              Se enviará una notificación push al token especificado
+              Se enviará una notificación push al token configurado manualmente
             </p>
             {!firebaseStatus.backendConfigured && (
               <p className="text-xs text-red-600 mt-1">
